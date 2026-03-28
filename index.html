@@ -388,39 +388,21 @@ window.addEventListener('DOMContentLoaded', () => {
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-async function sendQRWhatsApp(i) {
+function sendQRWhatsApp(i) {
     let s = students[i];
     let canvas = document.querySelector("#qArea canvas");
     
     if (canvas) {
-        try {
-            // 1. تحويل الكانفاس لـ Blob (بيانات ملف حقيقية)
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-            const url = URL.createObjectURL(blob);
-            
-            // 2. إنشاء لينك التحميل وتجربة طريقتين للأمان
-            const downloadLink = document.createElement('a');
-            downloadLink.href = url;
-            downloadLink.download = `QR-${s.name}.png`;
-            
-            // إضافة اللينك لـ DOM (مهم جداً للموبايل عشان يشتغل)
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-            
-            // تنظيف الذاكرة
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-
-            // 3. تنبيه بسيط (اختياري)
-            alert("✅ تم حفظ الكود في معرض الصور (أو التنزيلات) بنجاح");
-        } catch (e) {
-            console.error("Download failed", e);
-            alert("حدث خطأ أثناء تحميل الصورة، جرب مرة أخرى");
-        }
+        // حركة التحميل التلقائي (بتشتغل 100% على اللاب وتسهل على المستر)
+        let downloadLink = document.createElement('a');
+        downloadLink.setAttribute('download', `QR-${s.name}.png`);
+        downloadLink.setAttribute('href', canvas.toDataURL("image/png"));
+        downloadLink.click();
     }
 
-    // 4. فتح الواتساب كالمعتاد
-    let msg = `أهلاً يا *${s.name}*.. 🌟 \nده كود الدخول الخاص بك في السنتر. \n\nيرجى إرفاق الصورة التي تم تحميلها الآن وإظهارها عند الدخول. \n\nبالتوفيق يا بطل! ✨`;
+    // نص الرسالة اللي اتفقنا عليه (ثابت زي ما هو)
+    let msg = `أهلاً يا *${s.name}*.. 🌟 \nده كود الدخول الخاص بك في السنتر. \n\nيرجى حفظ هذه الصورة وإظهارها للسكرتارية عند الدخول لتسجيل حضورك. \n\nبالتوفيق يا بطل! ✨`;
+    
     let phone = s.sPhone.startsWith('0') ? '2' + s.sPhone : s.sPhone;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }

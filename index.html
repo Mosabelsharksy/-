@@ -388,11 +388,28 @@ window.addEventListener('DOMContentLoaded', () => {
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-       function sendQRWhatsApp(i) {
+function sendQRWhatsApp(i) {
     let s = students[i];
-    // نص الرسالة الجديد - شيلنا الكود الرقمي عشان نعتمد على الصورة
-    let msg = `أهلاً يا *${s.name}*.. 🌟 \nده كود الدخول الخاص بك في السنتر. \n\nيرجى حفظ هذه الصورة وإظهارها للسكرتارية عند الدخول لتسجيل حضورك. \n\nبالتوفيق يا بطل! ✨`;
     
+    // 1. تحديد مكان الكود (الكانفاس) اللي اتولد جواه الـ QR
+    let canvas = document.querySelector("#qArea canvas");
+    
+    if (canvas) {
+        // 2. حركة "تنزيل الصورة" أوتوماتيك على الجهاز
+        let downloadLink = document.createElement('a');
+        downloadLink.setAttribute('download', `QR-${s.name}.png`);
+        let dataURL = canvas.toDataURL("image/png");
+        downloadLink.setAttribute('href', dataURL);
+        downloadLink.click();
+        
+        // 3. تنبيه سريع للمدرس عشان ميتفاجئش بالتحميل
+        console.log("Image downloaded to device");
+    }
+
+    // 4. نص الرسالة اللي هيروح للواتساب
+    let msg = `أهلاً يا *${s.name}*.. 🌟 \nده كود الدخول الخاص بك في السنتر. \n\n(يرجى إرفاق الصورة التي تم تحميلها الآن في هذه المحادثة وإظهارها للسكرتارية عند الدخول) \n\nبالتوفيق يا بطل! ✨`;
+    
+    // 5. ضبط رقم التليفون وفتح الواتساب
     let phone = s.sPhone.startsWith('0') ? '2' + s.sPhone : s.sPhone;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }

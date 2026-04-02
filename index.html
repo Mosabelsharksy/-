@@ -173,6 +173,11 @@
     </div></div>
 
     <script>
+        function getTodayDate() {
+    const d = new Date();
+    // النتيجة هتكون دايماً "2026-4-2" مثلاً (أرقام إنجليزية ثابتة)
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
         // 1. إعدادات الفايربيز (الكونفيج بتاعك)
 const firebaseConfig = {
     apiKey: "AIzaSyCqSLhx1LNn26NFxuwQBsgunMQqB7SdxbA",
@@ -184,6 +189,15 @@ const firebaseConfig = {
     measurementId: "G-QEFEF1KJXD"
 };
 firebase.initializeApp(firebaseConfig);
+// ضيف الكود ده هنا
+firebase.firestore().enablePersistence()
+  .catch((err) => {
+      if (err.code == 'failed-precondition') {
+          console.log("الأوفلاين يشتغل في تاب واحدة بس");
+      } else if (err.code == 'unimplemented') {
+          console.log("المتصفح لا يدعم الأوفلاين");
+      }
+  });
 const db = firebase.firestore();
 
 // 2. دالة تسجيل الدخول
@@ -203,14 +217,18 @@ function handleLogin() {
 async function launchApp() {
     document.getElementById('loginOverlay').style.display = 'none';
     
-    // سحب الداتا من الفايربيز
     try {
-        const doc = await db.collection('settings').doc('mainData').get();
-        if (doc.exists) {
-            students = doc.data().students || [];
-            if(typeof draw === 'function') draw(); // لو عندك فنكشن اسمها draw هيرسم الجدول
-        }
-    } catch (e) { console.log("خطأ في جلب البيانات"); }
+        // سحب كل الطلاب من كوليكشن students
+        const querySnapshot = await db.collection('students').get();
+        students = [];
+        querySnapshot.forEach((doc) => {
+            students.push(doc.data());
+        });
+        draw(); 
+    } catch (e) { 
+        console.log("خطأ في جلب البيانات، هشتغل من الـ LocalStorage حالياً");
+        draw();
+    }
 }
 
 // 4. التأكد من الجلسة عند الريفرش
@@ -219,13 +237,22 @@ window.addEventListener('DOMContentLoaded', () => {
         launchApp();
     }
 });
-        let students = localStorage.getItem('pro_v_ultimate') ? JSON.parse(localStorage.getItem('pro_v_ultimate')) : [];
+        let students = [];
         let editIdx = -1;
         let html5QrCode;
         let currentHonorYear = 'الصف الأول الثانوي';
 
-        function save() { localStorage.setItem('pro_v_ultimate', JSON.stringify(students));  db.collection('settings').doc('mainData').set({ students: students });}
-       
+function save(studentObj) {
+    // 1. تحديث الـ LocalStorage (للسرعة وعشان الأوفلاين)
+    localStorage.setItem('pro_v_ultimate', JSON.stringify(students)); 
+    
+    // 2. أهم خطوة: لو بعتنا طالب معين، نحدثه في الفايربيز باسم الـ ID بتاعه
+    if(studentObj && studentObj.id) {
+        db.collection('students').doc(studentObj.id).set(studentObj, { merge: true })
+        .then(() => console.log("تم التحديث في السيرفر ✅"))
+        .catch((error) => console.error("خطأ في التحديث: ", error));
+    }
+}
         function toggleDarkMode() {
             const isLight = document.getElementById('bodyTag').classList.toggle('light-mode');
             localStorage.setItem('theme_mode', isLight ? 'light' : 'dark');
@@ -237,82 +264,136 @@ window.addEventListener('DOMContentLoaded', () => {
             if(savedTheme === 'light') { document.getElementById('bodyTag').classList.add('light-mode'); document.getElementById('themeBtn').innerText = '☀️'; }
         })();
 
-        function addStudent() {
-            let n = document.getElementById('name').value;
-            let y = document.getElementById('year').value;
-            if(!n) return alert("الاسم مطلوب!");
-            if(editIdx === -1) {
-                students.push({
-                    id: "ST-"+Date.now(), name: n, center: document.getElementById('center').value, year: y,
-                    sPhone: document.getElementById('sPhone').value, pPhone: document.getElementById('pPhone').value,
-                    payment: false, payDate: null, payTimestamp: null, regDate: new Date().toLocaleDateString('ar-EG'),
-                    attendance: [], exams: [], homeworks: []
-                });
-            } else {
-                let s = students[editIdx];
-                s.name = n; s.center = document.getElementById('center').value; s.year = y;
-                s.sPhone = document.getElementById('sPhone').value; s.pPhone = document.getElementById('pPhone').value;
-                editIdx = -1; document.getElementById('mainBtn').innerText = "✨ إضافة الطالب";
-            }
-            save(); draw(); clearInputs();
+function addStudent() {
+    let n = document.getElementById('name').value;
+    let y = document.getElementById('year').value;
+    if(!n) return alert("الاسم مطلوب!");
+
+    let studentToSave; // متغير هنشيل فيه الطالب اللي هيتبعت للفايربيز
+
+    if(editIdx === -1) {
+        // حالة: طالب جديد
+        let newS = {
+            id: "ST-"+Date.now(), 
+            name: n, 
+            center: document.getElementById('center').value, 
+            year: y,
+            sPhone: document.getElementById('sPhone').value, 
+            pPhone: document.getElementById('pPhone').value,
+            payment: false, 
+            payDate: null, 
+            payTimestamp: null, 
+            regDate: getTodayDate(),
+            attendance: [], 
+            exams: [], 
+            homeworks: []
+        };
+        students.push(newS);
+        studentToSave = newS; // هنبعت الجديد
+    } else {
+        // حالة: تعديل طالب موجود
+        let s = students[editIdx];
+        s.name = n; 
+        s.center = document.getElementById('center').value; 
+        s.year = y;
+        s.sPhone = document.getElementById('sPhone').value; 
+        s.pPhone = document.getElementById('pPhone').value;
+        
+        studentToSave = s; // هنبعت اللي اتعدل
+        
+        // نرجع الزرار لأصله ونصفر الـ index بعد ما حددنا الطالب
+        editIdx = -1; 
+        document.getElementById('mainBtn').innerText = "✨ إضافة الطالب";
+    }
+
+    // الحفظ النهائي (دلوقتي بقى مضمون 100%)
+    save(studentToSave); 
+    draw(); 
+    clearInputs();
+}
+
+    function draw() {
+    // 1. شرط الأمان: لو لسه الداتا متحملتش من السيرفر، متعملش أي حاجة ولا تحسب نقط
+    if (!students || students.length === 0) {
+        document.getElementById('tbody').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">جاري تحميل بيانات الطلاب... 🔄</td></tr>';
+        return;
+    }
+
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    const nowTime = Date.now();
+    let nT = document.getElementById('sN').value.toLowerCase();
+    let cT = document.getElementById('sC').value.toLowerCase();
+    let yT = document.getElementById('sY').value;
+    let html = '';
+
+    students.forEach((s, i) => {
+        // تحديث حالة الدفع تلقائياً
+        if(s.payment && s.payTimestamp && (nowTime - s.payTimestamp > thirtyDays)) {
+            s.payment = false; s.payDate = null; s.payTimestamp = null; 
+            save(s); // بنسيف الطالب ده بس مش المصفوفة كلها
         }
 
-        function draw() {
-            const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-            const nowTime = Date.now();
-            let nT = document.getElementById('sN').value.toLowerCase();
-            let cT = document.getElementById('sC').value.toLowerCase();
-            let yT = document.getElementById('sY').value;
-            let html = '';
-
-            students.forEach((s, i) => {
-                if(s.payment && s.payTimestamp && (nowTime - s.payTimestamp > thirtyDays)) {
-                    s.payment = false; s.payDate = null; s.payTimestamp = null; save();
-                }
-
-                if(s.name.toLowerCase().includes(nT) && s.center.toLowerCase().includes(cT) && (yT === "" || s.year === yT)) {
-                    html += `<tr>
-                        <td style="text-align:right">
-                            <b>${s.name}</b><br>
-                            <span style="font-size:10px; color:var(--primary)">🎓 ${s.year} | 📍 ${s.center}</span>
-                            <a class="phone-link" href="tel:${s.sPhone}">📱 الطالب: ${s.sPhone}</a>
-                            <a class="phone-link" href="tel:${s.pPhone}" style="color:var(--warning)">👨‍👩‍👦 ولي الأمر: ${s.pPhone}</a>
-                        </td>
-                        <td><button class="btn" style="background:${s.payment?'var(--success)':'#444'}" onclick="handlePay(${i})">${s.payment?'✅ دافع':'💰 ادفع'}</button></td>
-                        <td>
-                            <span class="small-date">📅 تسجيل: ${s.regDate}</span>
-                            <span class="small-date" style="color:var(--success)">💳 دفع: ${s.payDate || '---'}</span>
-                        </td>
-                        <td>
-                            <div style="display:flex; gap:4px; justify-content:center;">
-                                <button class="btn" style="background:var(--whatsapp)" onclick="showWhatsAppOptions(${i})">📱</button>
-<button class="btn" style="background:#2c3e50" title="حضور يدوي" onclick="markAttendanceManually(${i})">✔️</button>  
-                                <button class="btn" style="background:var(--primary)" onclick="showAcademic(${i})">📝</button>
-                                <button class="btn" style="background:var(--info)" onclick="prepareQR(${i})">QR</button>
-                                <button class="btn" style="background:#f39c12" onclick="editStd(${i})">✎</button>
-                                <button class="btn" style="background:var(--danger)" onclick="del(${i})">🗑️</button>
-                            </div>
-                        </td>
-                    </tr>`;
-                }
-            });
-            document.getElementById('tbody').innerHTML = html;
-            document.getElementById('statTotal').innerText = students.length;
-            document.getElementById('statPaid').innerText = students.filter(x=>x.payment).length;
-            drawHonor(currentHonorYear);
+        if(s.name.toLowerCase().includes(nT) && s.center.toLowerCase().includes(cT) && (yT === "" || s.year === yT)) {
+            html += `<tr>
+                <td style="text-align:right">
+                    <b>${s.name}</b><br>
+                    <span style="font-size:10px; color:var(--primary)">🎓 ${s.year} | 📍 ${s.center}</span>
+                    <a class="phone-link" href="tel:${s.sPhone}">📱 الطالب: ${s.sPhone}</a>
+                    <a class="phone-link" href="tel:${s.pPhone}" style="color:var(--warning)">👨‍👩‍👦 ولي الأمر: ${s.pPhone}</a>
+                </td>
+                <td><button class="btn" style="background:${s.payment?'var(--success)':'#444'}" onclick="handlePay(${i})">${s.payment?'✅ دافع':'💰 ادفع'}</button></td>
+                <td>
+                    <span class="small-date">📅 تسجيل: ${s.regDate}</span>
+                    <span class="small-date" style="color:var(--success)">💳 دفع: ${s.payDate || '---'}</span>
+                </td>
+                <td>
+                    <div style="display:flex; gap:4px; justify-content:center;">
+                        <button class="btn" style="background:var(--whatsapp)" onclick="showWhatsAppOptions(${i})">📱</button>
+                        <button class="btn" style="background:#2c3e50" title="حضور يدوي" onclick="markAttendanceManually(${i})">✔️</button>   
+                        <button class="btn" style="background:var(--primary)" onclick="showAcademic(${i})">📝</button>
+                        <button class="btn" style="background:var(--info)" onclick="prepareQR(${i})">QR</button>
+                        <button class="btn" style="background:#f39c12" onclick="editStd(${i})">✎</button>
+                        <button class="btn" style="background:var(--danger)" onclick="del(${i})">🗑️</button>
+                    </div>
+                </td>
+            </tr>`;
         }
+    });
+    
+    document.getElementById('tbody').innerHTML = html;
+    document.getElementById('statTotal').innerText = students.length;
+    document.getElementById('statPaid').innerText = students.filter(x=>x.payment).length;
+    
+    // رسم لوحة الشرف بعد التأكد من وجود البيانات
+    drawHonor(currentHonorYear);
+}
 
-        function calculatePoints(s) {
-            let attP = s.attendance.length * 10;
-            let hwP = s.homeworks.reduce((acc, h) => {
-                if(h.rank === 'ممتاز') return acc + 20;
-                if(h.rank === 'جيد جداً') return acc + 15;
-                if(h.rank === 'جيد') return acc + 10;
-                return acc + 5;
-            }, 0);
-            let exAvg = s.exams.length > 0 ? (s.exams.reduce((acc, e) => acc + (e.score/e.total), 0) / s.exams.length) * 100 : 0;
-            return { total: (attP + hwP + exAvg).toFixed(1), attP, hwP, exAvg: exAvg.toFixed(1) };
-        }
+ function calculatePoints(s) {
+    if (!s) return { total: 0, attP: 0, hwP: 0, exAvg: 0 };
+    
+    // تأكد إن المصفوفات موجودة عشان ميعطيش Error
+    let attendance = s.attendance || [];
+    let homeworks = s.homeworks || [];
+    let exams = s.exams || [];
+
+    let attP = attendance.length * 10;
+    let hwP = homeworks.reduce((acc, h) => {
+        if(h.rank === 'ممتاز') return acc + 20;
+        if(h.rank === 'جيد جداً') return acc + 15;
+        if(h.rank === 'جيد') return acc + 10;
+        return acc + 5;
+    }, 0);
+
+    let exAvg = exams.length > 0 ? 
+        (exams.reduce((acc, e) => acc + (Number(e.score)/Number(e.total)), 0) / exams.length) * 100 : 0;
+
+    return { 
+        total: (attP + hwP + exAvg).toFixed(1), 
+        attP, 
+        hwP, 
+        exAvg: exAvg.toFixed(1) 
+    };
+}
 
         function drawHonor(year) {
             let filtered = students.map((s, idx) => ({...s, realIdx: idx}))
@@ -367,7 +448,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         function sendWAReport(i, type) {
             let s = students[i];
-            let today = new Date().toLocaleDateString('ar-EG');
+            let today = getTodayDate();
             let msg = "";
 
             if (type === 'absent') {
@@ -475,23 +556,23 @@ let attLog = s.attendance.map((a, idx) => `
         function handlePay(i) {
             let s = students[i];
             if(!s.payment) {
-                if(confirm(`تأكيد دفع ${s.name}؟`)) { s.payment = true; s.payDate = new Date().toLocaleDateString('ar-EG'); s.payTimestamp = Date.now(); }
+                if(confirm(`تأكيد دفع ${s.name}؟`)) { s.payment = true; s.payDate = getTodayDate(); s.payTimestamp = Date.now(); }
             } else { if(confirm("إلغاء الدفع؟")) { s.payment = false; s.payDate = null; s.payTimestamp = null; } }
-            save(); draw();
+            save(s); draw();
         }
 
-        function addHW(i, r) { students[i].homeworks.push({ rank: r, date: new Date().toLocaleDateString('ar-EG') }); save(); showAcademic(i); draw(); }
+        function addHW(i, r) { students[i].homeworks.push({ rank: r, date: getTodayDate() }); save(students[i]); showAcademic(i); draw(); }
         function addEx(i) {
             let t = document.getElementById('exT').value, s = document.getElementById('exS').value, m = document.getElementById('exM').value;
-            if(!t || !s || !m) return alert("اكمل البيانات");
-            students[i].exams.push({ title: t, score: s, total: m, date: new Date().toLocaleDateString('ar-EG') });
-            save(); showAcademic(i); draw();
+            if(!t || !s || !m) return alert("يا مستر، من فضلك دخل اسم الامتحان والدرجة كاملة");
+            students[i].exams.push({ title: t, score: s, total: m, date: getTodayDate() });
+            save(students[i]); showAcademic(i); draw();
         }
         // وظيفة مسح الواجب
         function deleteHW(studentIdx, itemIdx) {
             if(confirm("هل أنت متأكد من مسح تقييم هذا الواجب؟")) {
                 students[studentIdx].homeworks.splice(itemIdx, 1);
-                save(); 
+                save(students[studentIdx]); 
                 showAcademic(studentIdx); // عشان السجل يتحدث قدامك فوراً
                 draw(); // عشان لوحة الشرف تتحدث
             }
@@ -501,7 +582,7 @@ let attLog = s.attendance.map((a, idx) => `
         function deleteEx(studentIdx, itemIdx) {
             if(confirm("هل أنت متأكد من مسح درجة هذا الامتحان؟")) {
                 students[studentIdx].exams.splice(itemIdx, 1);
-                save(); 
+                save(students[studentIdx]); 
                 showAcademic(studentIdx); // عشان السجل يتحدث قدامك فوراً
                 draw(); // عشان لوحة الشرف تتحدث
             }
@@ -521,7 +602,7 @@ function openScanner() {
             let s = students.find(x => x.id === txt);
             if(s) { 
                 s.attendance.push(new Date().toLocaleString('ar-EG')); 
-                save(); 
+                save(s); 
                 alert("✅ تم تسجيل حضور: " + s.name); 
                 closeScanner(); // دي هتقفل دلوقتى زي الطلقة
                 draw(); 
@@ -580,28 +661,52 @@ async function closeScanner() {
             let s = students[i]; ['name','center','sPhone','pPhone','year'].forEach(id => document.getElementById(id).value = s[id]);
             editIdx = i; document.getElementById('mainBtn').innerText = "✅ تحديث البيانات"; window.scrollTo(0,0);
         }
-        function del(i) { if(confirm("حذف الطالب؟")) { students.splice(i,1); save(); draw(); } }
-        function closeModal() { document.getElementById('genericModal').style.display = 'none'; }
+function del(i) {
+    let s = students[i]; // بنعرف هو مين الطالب اللي هنمسحه
+    
+    if(confirm(`هل أنت متأكد من حذف الطالب: ${s.name} نهائياً؟`)) {
+        
+        // 1. نمسحه من الفايربيز (الخطوة اللي كانت ناقصة)
+        db.collection('students').doc(s.id).delete()
+        .then(() => {
+            console.log("تم الحذف من السيرفر بنجاح");
+        })
+        .catch((error) => {
+            console.error("خطأ في الحذف من السيرفر: ", error);
+        });
+
+        // 2. نمسحه من المصفوفة اللي قدامنا في الشاشة
+        students.splice(i, 1);
+        
+        // 3. نسيف في الـ LocalStorage عشان يختفي فوراً
+        save(); 
+        
+        // 4. نعيد رسم الجدول
+        draw(); 
+        drawHonor(currentHonorYear); // <--- السطر ده هيشيله من لوحة الشرف فوراً!
+        
+        alert("تم الحذف بنجاح");
+
+
+    }
+}        function closeModal() { document.getElementById('genericModal').style.display = 'none'; }
         function clearInputs() { ['name','center','sPhone','pPhone'].forEach(id=>document.getElementById(id).value=''); }
        
         draw();
-        function handleLogout() {
-    if(confirm("هل أنت متأكد من تسجيل الخروج؟")) {
-        // 1. امسح مفتاح الجلسة من المتصفح
+       function handleLogout() {
+    if(confirm("هل تريد تسجيل الخروج؟ (سيتم طلب الباسورد المرة القادمة)")) {
         localStorage.removeItem('sessionActive');
-        
-        // 2. اعمل ريفريش عشان شاشة الدخول تظهر تاني آلياً
         window.location.reload();
     }
 }
 function markAttendanceManually(i) {
     let s = students[i];
-    let today = new Date().toLocaleDateString('ar-EG');
+    let today = getTodayDate();
     
     // تسجيل الحضور بالوقت والتاريخ الحالي
     s.attendance.push(new Date().toLocaleString('ar-EG')); 
     
-    save(); // حفظ في الفايربيز والـ localStorage
+    save(s); // حفظ في الفايربيز والـ localStorage
     draw(); // تحديث الجدول عشان تشوف التغيير
     
     alert("✅ تم تسجيل حضور " + s.name + " يدوياً بنجاح");

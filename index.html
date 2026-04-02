@@ -590,7 +590,6 @@ let attLog = s.attendance.map((a, idx) => `
 
 function openScanner() {
     document.getElementById('scannerModal').style.display = 'flex';
-    // لو الـ html5QrCode مش متعرف أو اتمسح، بنعرفه من جديد
     if (!html5QrCode) {
         html5QrCode = new Html5Qrcode("reader");
     }
@@ -599,13 +598,20 @@ function openScanner() {
         { facingMode: "environment" }, 
         { fps: 15, qrbox: 250 }, 
         (txt) => {
-            let s = students.find(x => x.id === txt);
+            // 1. بندور على الطالب بالكود (txt) اللي الكاميرا قرأته
+            let s = students.find(x => x.id === txt.trim()); 
+
             if(s) { 
+                // ✅ لو الطالب موجود: بنسجله حضور
                 s.attendance.push(new Date().toLocaleString('ar-EG')); 
                 save(s); 
                 alert("✅ تم تسجيل حضور: " + s.name); 
-                closeScanner(); // دي هتقفل دلوقتى زي الطلقة
+                closeScanner(); 
                 draw(); 
+            } else {
+                // ❌ لو الكود غريب أو مش متسجل في لستة الطلاب
+                alert("⚠️ عذراً.. الكود ده مش متسجل في السيستم عندنا!");
+                // ملحوظة: مش هنقفل السكانر (closeScanner) هنا عشان المدرس يقدر يصور كود تاني صح
             }
         }
     ).catch(e => console.log("Error starting scanner", e));

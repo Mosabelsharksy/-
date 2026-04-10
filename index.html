@@ -311,6 +311,56 @@ firebase.firestore().enablePersistence()
       }
   });
 const db = firebase.firestore();
+const studentsRef = db.collection('students');
+const groupsRef = db.collection('groups');
+
+async function loadStudentsFromFirestore() {
+    const snapshot = await studentsRef.orderBy('name').get();
+    if (!snapshot.empty) {
+        students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } else {
+        students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
+    }
+    ensureDataShape();
+    localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
+}
+
+async function loadGroupsFromFirestore() {
+    const snapshot = await groupsRef.orderBy('name').get();
+    if (!snapshot.empty) {
+        groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } else {
+        groups = loadGroupsFromStorage();
+        groups.forEach(g => {
+            if (g.id) groupsRef.doc(g.id).set(g, { merge: true }).catch(() => {});
+        });
+    }
+    persistGroups();
+    renderGroupSelect();
+}
+
+function initRealtimeUpdates() {
+    groupsRef.onSnapshot(snapshot => {
+        groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        ensureDataShape();
+        persistGroups();
+        renderGroupSelect();
+        if (selectedGroupId && !groups.some(g => g.id === selectedGroupId)) {
+            selectedGroupId = '';
+            goHome();
+        }
+        draw();
+        updateKPIs();
+    }, err => console.log('Firestore groups listener error', err));
+
+    studentsRef.onSnapshot(snapshot => {
+        students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        ensureDataShape();
+        localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
+        draw();
+        updateKPIs();
+    }, err => console.log('Firestore students listener error', err));
+}
 
 // 2. دالة تسجيل الدخول
 async function handleLogin() {
@@ -331,15 +381,9 @@ async function handleLogin() {
 // 3. دالة فتح التطبيق وسحب الداتا
 async function launchApp() {
     document.getElementById('loginOverlay').style.display = 'none';
-    
     try {
-        // سحب كل الطلاب من كوليكشن students
-        const querySnapshot = await db.collection('students').get();
-        students = [];
-        querySnapshot.forEach((doc) => {
-            students.push(doc.data());
-        });
-        ensureDataShape();
+        await Promise.all([loadGroupsFromFirestore(), loadStudentsFromFirestore()]);
+        initRealtimeUpdates();
         renderGroupSelect();
         draw();
         restoreLastView();
@@ -420,12 +464,22 @@ function loadGroupsFromStorage() {
 function persistGroups() {
     localStorage.setItem('sms_groups', JSON.stringify(groups));
     localStorage.setItem('mos3ab_groups_v2', JSON.stringify(groups));
+    if (navigator.onLine) {
+        groups.forEach(g => {
+            if (g.id) groupsRef.doc(g.id).set(g, { merge: true }).catch(err => console.log('Failed to sync group', g.id, err));
+        });
+    }
 }
 
 function save(studentObj) {
     localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
     if(!studentObj || !studentObj.id) return;
-    enqueueSync({ type: 'upsert', id: studentObj.id, payload: studentObj, ts: Date.now() });
+    if (navigator.onLine) {
+        studentsRef.doc(studentObj.id).set(studentObj, { merge: true })
+            .catch(() => enqueueSync({ type: 'upsert', id: studentObj.id, payload: studentObj, ts: Date.now() }));
+    } else {
+        enqueueSync({ type: 'upsert', id: studentObj.id, payload: studentObj, ts: Date.now() });
+    }
 }
 
 function enqueueSync(op) {
@@ -945,21 +999,20 @@ function del(i) {
     
     if(confirm(`هل أنت متأكد من حذف الطالب: ${s.name} نهائياً؟`)) {
         
-        // 1. نمسحه من الفايربيز (الخطوة اللي كانت ناقصة)
-        enqueueSync({ type: 'delete', id: s.id, ts: Date.now() });
+        if (navigator.onLine) {
+            studentsRef.doc(s.id).delete().catch(() => enqueueSync({ type: 'delete', id: s.id, ts: Date.now() }));
+        } else {
+            enqueueSync({ type: 'delete', id: s.id, ts: Date.now() });
+        }
 
-        // 2. نمسحه من المصفوفة اللي قدامنا في الشاشة
         students.splice(i, 1);
         
-        // 3. نسيف في الـ LocalStorage عشان يختفي فوراً
         localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
         
-        // 4. نعيد رسم الجدول
         draw(); 
-        drawHonor(currentHonorYear); // <--- السطر ده هيشيله من لوحة الشرف فوراً!
+        drawHonor(currentHonorYear); 
         
         alert("تم الحذف بنجاح");
-
 
     }
 }        function closeModal() {
@@ -1129,6 +1182,12 @@ function deleteGroup(groupId, allowStudentsDelete = false) {
         localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
     }
     if (!confirm(`تأكيد حذف المجموعة: ${g.name}؟`)) return;
+    if (navigator.onLine) {
+        groupsRef.doc(groupId).delete().catch(err => console.log('Failed to delete group from Firestore', err));
+        students.filter(s => s.groupId === groupId).forEach(s => {
+            studentsRef.doc(s.id).delete().catch(err => console.log('Failed to delete student on group removal', err));
+        });
+    }
     groups = groups.filter(x => x.id !== groupId);
     persistGroups();
     if (selectedGroupId === groupId) {

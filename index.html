@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --bg: #0f0c29; --card: rgba(255,255,255,0.08); --text: #fff;
@@ -84,10 +85,19 @@
         .hw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
         .action-btns { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
         .danger-zone { border:1px dashed rgba(255,94,98,.6); border-radius:14px; padding:10px; background: rgba(255,94,98,.08); margin-top:10px; }
+        .table-wrapper table { min-width: 100%; }
+        th, td { white-space: normal; word-break: break-word; }
         @media (max-width: 740px) {
             .stats-grid, .kpi-grid, .quick-actions, .hub-actions { grid-template-columns: 1fr; }
             .nav h2 { font-size: 17px; }
             .pay-grid { grid-template-columns: 1fr; }
+            .hub-actions { grid-template-columns: 1fr; }
+            .quick-actions { grid-template-columns: 1fr; }
+            .group-card { min-height: 130px; }
+            .table-wrapper { overflow-x: scroll; }
+            .modal-content { width: 95%; max-width: 95%; padding: 18px; }
+            .btn { font-size: 14px; padding: 10px; }
+            .glass-box { padding: 15px; }
         }
        
         .honor-section { background: linear-gradient(45deg, rgba(138,43,226,0.12), rgba(0,212,255,0.12)); border: 2px solid var(--gold); box-shadow: 0 10px 30px rgba(255,215,0,0.1); }
@@ -104,47 +114,78 @@
 #loginOverlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(135deg, #1e1e2f 0%, #0f0f1a 100%);
+    background: radial-gradient(circle at top right, rgba(138,43,226,0.25), transparent 20%),
+                radial-gradient(circle at bottom left, rgba(0,212,255,0.18), transparent 18%),
+                linear-gradient(135deg, #12111f 0%, #0b0a14 100%);
     display: flex; justify-content: center; align-items: center;
     z-index: 9999; transition: 0.5s;
 }
 
 .login-card {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 40px; border-radius: 20px;
-    width: 360px; text-align: center;
-    box-shadow: 0 20px 45px rgba(0,0,0,0.55);
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 34px 30px 26px;
+    border-radius: 28px;
+    width: min(95%, 380px);
+    text-align: center;
+    box-shadow: 0 28px 70px rgba(0,0,0,0.45);
     position: relative;
     overflow: hidden;
 }
 .login-card::before {
     content: "";
     position: absolute;
-    inset: -60% -20% auto -20%;
+    inset: -40% -20% auto -20%;
     height: 220px;
-    background: radial-gradient(circle, rgba(138,43,226,.35), transparent 60%);
+    background: radial-gradient(circle, rgba(138,43,226,.25), transparent 55%);
     pointer-events: none;
 }
 
-.login-card h2 { color: #fff; margin-bottom: 8px; font-weight: 700; letter-spacing: .5px; position: relative; }
-.login-sub { opacity:.8; font-size:13px; margin-bottom: 18px; position: relative; }
+.brand-logo {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 18px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(138,43,226,0.95), rgba(0,212,255,0.95));
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    box-shadow: 0 18px 42px rgba(0,0,0,0.35);
+}
+.brand-logo small {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.9px;
+    opacity: 0.75;
+    margin-top: 2px;
+}
+
+.login-card h2 { color: #fff; margin-bottom: 6px; font-weight: 800; letter-spacing: .5px; }
+.login-sub { opacity:.85; font-size:14px; margin-bottom: 22px; color: #d8d8ff; }
 
 .login-card input {
-    width: 100%; padding: 12px; margin-bottom: 20px;
-    border-radius: 10px; border: none;
-    background: rgba(255, 255, 255, 0.1);
+    width: 100%; padding: 12px; margin-bottom: 18px;
+    border-radius: 12px; border: none;
+    background: rgba(255, 255, 255, 0.12);
     color: #fff; outline: none;
 }
 
 .login-card button {
-    width: 100%; padding: 12px; border-radius: 10px;
-    border: none; background: #4e73df; color: white;
-    font-weight: bold; cursor: pointer; transition: 0.3s;
+    width: 100%; padding: 14px; border-radius: 14px;
+    border: none; background: linear-gradient(135deg, #8a2be2, #4e73df);
+    color: white; font-weight: 700; cursor: pointer; transition: 0.3s;
 }
 
-.login-card button:hover { background: #224abe; }
+.login-card button:hover { background: linear-gradient(135deg, #6d23d5, #3456c9); }
+.login-footer {
+    margin-top: 18px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.67);
+}
 .watermark {
     position: fixed;
     bottom: 10px;
@@ -163,11 +204,12 @@
     <div id="loginOverlay">
     <div class="login-card">
         <h2>تسجيل الدخول</h2>
-        <div class="login-sub">نظام إدارة الطلاب - نسخة احترافية</div>
+        <div class="login-sub">أدخل بياناتك للوصول إلى لوحة التحكم</div>
         <input type="text" id="adminUser" placeholder="اسم المستخدم">
         <input type="password" id="adminPass" placeholder="كلمة المرور">
         <button onclick="handleLogin()">دخول</button>
         <p id="loginError" style="color: #ff5e5e; display: none; margin-top: 15px;">البيانات غير صحيحة!</p>
+        <div class="login-footer">نسخة متقدمة من نظام MOS3AB لإدارة الطلاب</div>
     </div>
 </div>
     <div class="nav">
@@ -203,10 +245,11 @@
             <button class="btn hub-btn" style="background:#2b8a3e" onclick="openStartSessionModal()">▶️ بدء حصة</button>
             <button class="btn hub-btn" style="background:#0b7285" onclick="openGroupManager()">👥 المجموعات</button>
             <button class="btn hub-btn" style="background:#495057" onclick="openFinancialDashboard()">💰 لوحة المالية</button>
+            <button class="btn hub-btn" style="background:#8f5b2e" onclick="openExpenseManager()">💸 المصروفات</button>
             <button class="btn hub-btn" style="background:#6741d9" onclick="openGroupNotebook()">📒 دفتر المجموعة</button>
             <button class="btn hub-btn" style="background:#f08c00" onclick="openGlobalHonorBoard()">🏆 لوحة الشرف</button>
             <button class="btn hub-btn" style="background:#2f9e44" onclick="openReadonlyRecords()">📁 عرض السجلات</button>
-            <button class="btn hub-btn" style="background:#5f3dc4; grid-column: 1 / -1;" onclick="openAllStudentsHub()">🌍 كل الطلاب</button>
+            <button class="btn hub-btn" style="background:#5f3dc4" onclick="openAllStudentsHub()">🌍 كل الطلاب</button>
         </div>
         <div class="stats-grid" style="display:none;">
             <div class="stat-card"> <h3 id="statTotal">0</h3> <p>إجمالي الطلاب</p> </div>
@@ -214,7 +257,7 @@
         </div>
 
         <div class="glass-box" id="groupFormBox" style="display:none;">
-            <input type="text" id="name" placeholder="اسم الطالب بالكامل">
+            <input type="text" id="name" autocomplete="off" placeholder="اسم الطالب بالكامل">
             <div id="extraFieldsBox" style="display:none;">
                 <input type="text" id="center" placeholder="السنتر">
                 <select id="year">
@@ -267,6 +310,9 @@
 
     <div id="genericModal" class="modal"><div class="modal-content" id="modalBody"></div></div>
     <div id="scannerModal" class="modal"><div class="modal-content">
+        <div id="scannerCountBox" class="log-item" style="text-align:center; margin-bottom:10px; border-right:4px solid var(--success); font-size:15px;">
+            ✅ المسجلين في الحصة: <b id="scannerCountValue">0</b> / <b id="scannerTotalValue">0</b>
+        </div>
         <div id="reader"></div>
         <button class="btn btn-primary" style="background:var(--danger); margin-top:15px" onclick="closeScanner()">إغلاق</button>
     </div></div>
@@ -275,8 +321,16 @@
 </footer>
 
     <script>
+        let trustedTimeOffsetMs = Number(localStorage.getItem('trusted_time_offset_ms') || '0');
+        let clockTrustState = localStorage.getItem('clock_trust_state') || 'device';
+        function getNowMs() {
+    return Date.now() + trustedTimeOffsetMs;
+}
+function getNowDateObj() {
+    return new Date(getNowMs());
+}
         function getTodayDate() {
-    const d = new Date();
+    const d = getNowDateObj();
     // النتيجة هتكون دايماً "2026-4-2" مثلاً (أرقام إنجليزية ثابتة)
     return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
@@ -313,30 +367,191 @@ firebase.firestore().enablePersistence()
 const db = firebase.firestore();
 const studentsRef = db.collection('students');
 const groupsRef = db.collection('groups');
+const expensesRef = db.collection('expenses');
+const appStateRef = db.collection('app_state').doc('active_session');
+const timeProbeRef = db.collection('app_state').doc('server_time_probe');
+
+const IDB_NAME = 'MOS3AB_DB';
+const IDB_VERSION = 1;
+const IDB_STUDENTS = 'students';
+const IDB_GROUPS = 'groups';
+const IDB_QUEUE = 'queue';
+
+function openIDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(IDB_NAME, IDB_VERSION);
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(IDB_STUDENTS)) db.createObjectStore(IDB_STUDENTS, { keyPath: 'id' });
+            if (!db.objectStoreNames.contains(IDB_GROUPS)) db.createObjectStore(IDB_GROUPS, { keyPath: 'id' });
+            if (!db.objectStoreNames.contains(IDB_QUEUE)) db.createObjectStore(IDB_QUEUE, { autoIncrement: true });
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+function idbTransaction(storeName, mode, callback) {
+    return openIDB().then(db => new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, mode);
+        const store = tx.objectStore(storeName);
+        callback(store, resolve, reject);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    }));
+}
+
+async function saveItemToIDB(storeName, item) {
+    try {
+        await idbTransaction(storeName, 'readwrite', (store, resolve, reject) => {
+            const request = store.put(item);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.log('IDB save error', e);
+    }
+}
+
+async function deleteItemFromIDB(storeName, key) {
+    try {
+        await idbTransaction(storeName, 'readwrite', (store, resolve, reject) => {
+            const request = store.delete(key);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.log('IDB delete error', e);
+    }
+}
+
+async function loadAllFromIDB(storeName) {
+    try {
+        return await openIDB().then(db => new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+        }));
+    } catch (e) {
+        console.log('IDB load error', e);
+        return [];
+    }
+}
+
+async function clearIDBStore(storeName) {
+    try {
+        await idbTransaction(storeName, 'readwrite', (store, resolve, reject) => {
+            const request = store.clear();
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.log('IDB clear error', e);
+    }
+}
+
+async function saveStudentsToIDB(studentsList) {
+    await clearIDBStore(IDB_STUDENTS);
+    for (const student of studentsList) {
+        await saveItemToIDB(IDB_STUDENTS, student);
+    }
+}
+
+async function saveGroupsToIDB(groupsList) {
+    await clearIDBStore(IDB_GROUPS);
+    for (const group of groupsList) {
+        await saveItemToIDB(IDB_GROUPS, group);
+    }
+}
+
+async function loadStudentsFromIDB() {
+    const saved = await loadAllFromIDB(IDB_STUDENTS);
+    return Array.isArray(saved) ? saved : [];
+}
+
+async function loadGroupsFromIDB() {
+    const saved = await loadAllFromIDB(IDB_GROUPS);
+    return Array.isArray(saved) ? saved : [];
+}
+
+async function saveQueueToIDB(queue) {
+    await clearIDBStore(IDB_QUEUE);
+    for (const op of queue) {
+        await saveItemToIDB(IDB_QUEUE, op);
+    }
+}
+
+async function loadQueueFromIDB() {
+    return await loadAllFromIDB(IDB_QUEUE);
+}
 
 async function loadStudentsFromFirestore() {
     const snapshot = await studentsRef.orderBy('name').get();
     if (!snapshot.empty) {
         students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        ensureDataShape();
+        localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
+        saveStudentsToIDB(students);
     } else {
         students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
     }
-    ensureDataShape();
-    localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
 }
 
 async function loadGroupsFromFirestore() {
     const snapshot = await groupsRef.orderBy('name').get();
     if (!snapshot.empty) {
         groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        persistGroups();
+        await saveGroupsToIDB(groups);
     } else {
         groups = loadGroupsFromStorage();
         groups.forEach(g => {
             if (g.id) groupsRef.doc(g.id).set(g, { merge: true }).catch(() => {});
         });
     }
-    persistGroups();
     renderGroupSelect();
+}
+
+async function loadExpensesFromFirestore() {
+    const snapshot = await expensesRef.orderBy('ts', 'desc').get();
+    if (!snapshot.empty) {
+        expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        localStorage.setItem('center_expenses_v1', JSON.stringify(expenses));
+    } else {
+        expenses = JSON.parse(localStorage.getItem('center_expenses_v1') || '[]');
+    }
+}
+
+async function loadActiveSessionFromFirestore() {
+    try {
+        const doc = await appStateRef.get();
+        if (doc.exists && doc.data()?.id) {
+            activeSession = doc.data();
+            localStorage.setItem('active_session', JSON.stringify(activeSession));
+            return;
+        }
+    } catch (e) {
+        console.log('Failed to load active session from Firestore', e);
+    }
+    activeSession = JSON.parse(localStorage.getItem('active_session') || 'null');
+}
+
+async function syncTrustedClock() {
+    if (!navigator.onLine) return;
+    try {
+        await timeProbeRef.set({ probeAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        const probeDoc = await timeProbeRef.get({ source: 'server' });
+        const serverTs = probeDoc.data()?.probeAt;
+        if (!serverTs || typeof serverTs.toMillis !== 'function') return;
+        trustedTimeOffsetMs = serverTs.toMillis() - Date.now();
+        clockTrustState = 'server';
+        localStorage.setItem('trusted_time_offset_ms', String(trustedTimeOffsetMs));
+        localStorage.setItem('clock_trust_state', clockTrustState);
+    } catch (e) {
+        console.log('Clock sync failed, fallback to device time');
+    }
 }
 
 function initRealtimeUpdates() {
@@ -360,6 +575,24 @@ function initRealtimeUpdates() {
         draw();
         updateKPIs();
     }, err => console.log('Firestore students listener error', err));
+
+    expensesRef.onSnapshot(snapshot => {
+        expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        localStorage.setItem('center_expenses_v1', JSON.stringify(expenses));
+        updateKPIs();
+    }, err => console.log('Firestore expenses listener error', err));
+
+    appStateRef.onSnapshot(doc => {
+        const remoteSession = doc.exists ? doc.data() : null;
+        if (!remoteSession || !remoteSession.id) {
+            activeSession = null;
+            localStorage.removeItem('active_session');
+        } else {
+            activeSession = remoteSession;
+            localStorage.setItem('active_session', JSON.stringify(activeSession));
+        }
+        refreshSessionBanner();
+    }, err => console.log('Firestore active_session listener error', err));
 }
 
 // 2. دالة تسجيل الدخول
@@ -370,8 +603,8 @@ async function handleLogin() {
     const ok = await validateCredentials(user, pass);
     if(ok) {
         localStorage.setItem('sessionActive', 'true');
-        localStorage.setItem('session_token', String(Date.now()));
-        localStorage.setItem('session_expiry', String(Date.now() + (12 * 60 * 60 * 1000)));
+        localStorage.setItem('session_token', String(getNowMs()));
+        localStorage.setItem('session_expiry', String(getNowMs() + (12 * 60 * 60 * 1000)));
         launchApp();
     } else {
         document.getElementById('loginError').style.display = 'block';
@@ -382,7 +615,7 @@ async function handleLogin() {
 async function launchApp() {
     document.getElementById('loginOverlay').style.display = 'none';
     try {
-        await Promise.all([loadGroupsFromFirestore(), loadStudentsFromFirestore()]);
+        await Promise.all([loadGroupsFromFirestore(), loadStudentsFromFirestore(), loadExpensesFromFirestore(), loadActiveSessionFromFirestore(), syncTrustedClock()]);
         initRealtimeUpdates();
         renderGroupSelect();
         draw();
@@ -390,14 +623,24 @@ async function launchApp() {
         refreshSessionBanner();
         flushSyncQueue();
     } catch (e) { 
-        console.log("خطأ في جلب البيانات، هشتغل من الـ LocalStorage حالياً");
-        students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
+        console.log("خطأ في جلب البيانات، هشتغل من IndexedDB/LocalStorage حالياً");
+        students = await loadStudentsFromIDB();
+        if (!students || !students.length) {
+            students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
+        }
+        groups = await loadGroupsFromIDB();
+        if (!groups || !groups.length) {
+            groups = loadGroupsFromStorage();
+        }
+        expenses = JSON.parse(localStorage.getItem('center_expenses_v1') || '[]');
+        activeSession = JSON.parse(localStorage.getItem('active_session') || 'null');
         ensureDataShape();
         renderGroupSelect();
         draw();
         restoreLastView();
         refreshSessionBanner();
     }
+    dataLoaded = true;
 }
 
 function restoreLastView() {
@@ -433,15 +676,24 @@ window.addEventListener('DOMContentLoaded', () => {
     renderGroupSelect();
     refreshSessionBanner();
     window.addEventListener('online', flushSyncQueue);
+    window.addEventListener('online', syncTrustedClock);
 });
         let students = [];
         let editIdx = -1;
         let html5QrCode;
         let currentHonorYear = 'الصف الأول الثانوي';
         let groups = loadGroupsFromStorage();
+        let expenses = JSON.parse(localStorage.getItem('center_expenses_v1') || '[]');
         let activeSession = JSON.parse(localStorage.getItem('active_session') || 'null');
         let selectedGroupId = '';
         let renderLimit = 120;
+        let dataLoaded = false;
+        let isSavingStudent = false;
+        let scannerRunning = false;
+        let lastScanText = '';
+        let lastScanAt = 0;
+        let allStudentsHubPage = 1;
+        const ALL_STUDENTS_PAGE_SIZE = 50;
         const groupThemes = ['#8a2be2', '#0b7285', '#2b8a3e', '#e67700', '#c2255c', '#364fc7'];
         const DEFAULT_TEACHER_PHONE = "201000000000";
         let offlineQueue = JSON.parse(localStorage.getItem('offline_queue_v1') || '[]');
@@ -464,6 +716,7 @@ function loadGroupsFromStorage() {
 function persistGroups() {
     localStorage.setItem('sms_groups', JSON.stringify(groups));
     localStorage.setItem('mos3ab_groups_v2', JSON.stringify(groups));
+    saveGroupsToIDB(groups);
     if (navigator.onLine) {
         groups.forEach(g => {
             if (g.id) groupsRef.doc(g.id).set(g, { merge: true }).catch(err => console.log('Failed to sync group', g.id, err));
@@ -473,13 +726,26 @@ function persistGroups() {
 
 function save(studentObj) {
     localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
+    saveItemToIDB(IDB_STUDENTS, studentObj);
     if(!studentObj || !studentObj.id) return;
     if (navigator.onLine) {
         studentsRef.doc(studentObj.id).set(studentObj, { merge: true })
-            .catch(() => enqueueSync({ type: 'upsert', id: studentObj.id, payload: studentObj, ts: Date.now() }));
+            .catch(() => enqueueSync({ type: 'upsert', id: studentObj.id, payload: studentObj, ts: getNowMs() }));
     } else {
-        enqueueSync({ type: 'upsert', id: studentObj.id, payload: studentObj, ts: Date.now() });
+        enqueueSync({ type: 'upsert', id: studentObj.id, payload: studentObj, ts: getNowMs() });
     }
+}
+
+function syncActiveSessionToFirebase() {
+    if (!navigator.onLine) {
+        enqueueSync({ type: activeSession ? 'activeSessionSet' : 'activeSessionClear', payload: activeSession || null, ts: getNowMs(), id: 'active_session' });
+        return;
+    }
+    if (!activeSession) {
+        appStateRef.delete().catch(() => enqueueSync({ type: 'activeSessionClear', payload: null, ts: getNowMs(), id: 'active_session' }));
+        return;
+    }
+    appStateRef.set(activeSession, { merge: false }).catch(() => enqueueSync({ type: 'activeSessionSet', payload: activeSession, ts: getNowMs(), id: 'active_session' }));
 }
 
 function enqueueSync(op) {
@@ -496,6 +762,11 @@ async function flushSyncQueue() {
         try {
             if (op.type === 'upsert') await db.collection('students').doc(op.id).set(op.payload, { merge: true });
             if (op.type === 'delete') await db.collection('students').doc(op.id).delete();
+            if (op.type === 'deleteGroup') await db.collection('groups').doc(op.id).delete();
+            if (op.type === 'upsertExpense') await expensesRef.doc(op.id).set(op.payload, { merge: true });
+            if (op.type === 'deleteExpense') await expensesRef.doc(op.id).delete();
+            if (op.type === 'activeSessionSet') await appStateRef.set(op.payload || null, { merge: false });
+            if (op.type === 'activeSessionClear') await appStateRef.delete();
             offlineQueue = offlineQueue.filter(x => !(x.ts === op.ts && x.id === op.id && x.type === op.type));
         } catch (e) {
             break;
@@ -506,15 +777,29 @@ async function flushSyncQueue() {
         function toggleDarkMode() {
             const isLight = document.getElementById('bodyTag').classList.toggle('light-mode');
             localStorage.setItem('theme_mode', isLight ? 'light' : 'dark');
-            document.getElementById('themeBtn').innerText = isLight ? '☀️' : '🌙';
+            const themeBtn = document.getElementById('themeBtn');
+            if (themeBtn) themeBtn.innerText = isLight ? '☀️' : '🌙';
         }
 
         (function loadTheme() {
             const savedTheme = localStorage.getItem('theme_mode');
-            if(savedTheme === 'light') { document.getElementById('bodyTag').classList.add('light-mode'); document.getElementById('themeBtn').innerText = '☀️'; }
+            if (savedTheme === 'light') {
+                document.getElementById('bodyTag').classList.add('light-mode');
+                const themeBtn = document.getElementById('themeBtn');
+                if (themeBtn) themeBtn.innerText = '☀️';
+            }
         })();
 
 function addStudent() {
+    if (isSavingStudent) return;
+    isSavingStudent = true;
+    const mainBtn = document.getElementById('mainBtn');
+    if (mainBtn) {
+        mainBtn.disabled = true;
+        mainBtn.style.opacity = '0.7';
+        mainBtn.innerText = "⏳ جاري الحفظ...";
+    }
+    try {
     let n = document.getElementById('name').value;
     let y = selectedGroupId ? 'غير محدد' : document.getElementById('year').value;
     if(!n) return alert("الاسم مطلوب!");
@@ -524,7 +809,7 @@ function addStudent() {
     if(editIdx === -1) {
         // حالة: طالب جديد
         let newS = {
-            id: "ST-"+Date.now(), 
+            id: "ST-"+getNowMs(), 
             name: n, 
             center: selectedGroupId ? (groups.find(g => g.id === selectedGroupId)?.center || '') : document.getElementById('center').value, 
             year: y,
@@ -541,7 +826,8 @@ function addStudent() {
             monthlyFee: 0,
             sessionFee: 0,
             paymentLogs: [],
-            attendance: [], 
+            attendance: [],
+            attendanceLog: [],
             exams: [], 
             homeworks: []
         };
@@ -570,13 +856,28 @@ function addStudent() {
     save(studentToSave); 
     draw(); 
     clearInputs();
+    document.getElementById('mainBtn').innerText = "✨ إضافة الطالب";
+    editIdx = -1;
+    } finally {
+        isSavingStudent = false;
+        if (mainBtn) {
+            mainBtn.disabled = false;
+            mainBtn.style.opacity = '1';
+            if (editIdx === -1) mainBtn.innerText = "✨ إضافة الطالب";
+        }
+    }
 }
 
     function draw() {
     if (selectedGroupId) document.getElementById('groupSelect').value = selectedGroupId;
     // 1. شرط الأمان: لو لسه الداتا متحملتش من السيرفر، متعملش أي حاجة ولا تحسب نقط
-    if (!students || students.length === 0) {
+    if (!dataLoaded) {
         document.getElementById('tbody').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">جاري تحميل بيانات الطلاب... 🔄</td></tr>';
+        updateKPIs();
+        return;
+    }
+    if (!students || students.length === 0) {
+        document.getElementById('tbody').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">لا يوجد طلاب مسجلين بعد.</td></tr>';
         updateKPIs();
         return;
     }
@@ -599,7 +900,7 @@ function addStudent() {
             filteredCount++;
             if (filteredCount > renderLimit) return;
             const missedCount = getMissedSessionsCount(s);
-            const isDanger = (!s.payment) || missedCount >= 2;
+            const isDanger = missedCount >= 2;
             const groupTheme = getGroupThemeById(s.groupId);
             html += `<tr>
                 <td style="text-align:right; border-right:4px solid ${groupTheme}" class="${isDanger ? 'danger-glow' : ''}">
@@ -641,6 +942,16 @@ function addStudent() {
     updateKPIs();
 }
 
+function normalizeNumber(v, fallback = 0) {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    const raw = String(v ?? '').trim();
+    if (!raw) return fallback;
+    const arDigits = '٠١٢٣٤٥٦٧٨٩';
+    const en = raw.replace(/[٠-٩]/g, d => String(arDigits.indexOf(d))).replace(',', '.');
+    const n = Number(en);
+    return Number.isFinite(n) ? n : fallback;
+}
+
  function calculatePoints(s) {
     if (!s) return { total: 0, attP: 0, hwP: 0, exAvg: 0 };
     
@@ -657,8 +968,13 @@ function addStudent() {
         return acc + 5;
     }, 0);
 
-    let exAvg = exams.length > 0 ? 
-        (exams.reduce((acc, e) => acc + (Number(e.score)/Number(e.total)), 0) / exams.length) * 100 : 0;
+    let exAvg = exams.length > 0 ?
+        (exams.reduce((acc, e) => {
+            const score = normalizeNumber(e.score, 0);
+            const total = normalizeNumber(e.total, 0);
+            if (total <= 0) return acc;
+            return acc + (score / total);
+        }, 0) / exams.length) * 100 : 0;
 
     return { 
         total: (attP + hwP + exAvg).toFixed(1), 
@@ -674,6 +990,7 @@ function openGlobalHonorBoard() {
       <h3>لوحة الشرف العامة</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <select id="globalHonorYear" oninput="renderGlobalHonorBoard()">
+          <option value="">كل السنوات</option>
           <option value="الصف الأول الثانوي">أولى ثانوي</option>
           <option value="الصف الثاني الثانوي">تانية ثانوي</option>
           <option value="الصف الثالث الثانوي">تالتة ثانوي</option>
@@ -684,6 +1001,7 @@ function openGlobalHonorBoard() {
         </select>
       </div>
       <div id="globalHonorList" class="mini-list" style="margin-top:10px;"></div>
+      <button class="btn btn-primary" style="background:var(--whatsapp)" onclick="sendHonorTop3WA()">إرسال أول 3 للمدرس</button>
       <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
     `;
     renderGlobalHonorBoard();
@@ -695,7 +1013,7 @@ function renderGlobalHonorBoard() {
     const gid = document.getElementById('globalHonorGroup').value;
     const ranked = students
       .map((s, idx) => ({ ...s, idx, pts: Number(calculatePoints(s).total) }))
-      .filter(s => s.year === year && (!gid || s.groupId === gid))
+      .filter(s => (!year || s.year === year) && (!gid || s.groupId === gid))
       .sort((a, b) => b.pts - a.pts)
       .slice(0, 300);
     const html = ranked.map((s, i) => `
@@ -706,6 +1024,28 @@ function renderGlobalHonorBoard() {
       </div>
     `).join('');
     document.getElementById('globalHonorList').innerHTML = html || '<p>لا يوجد طلاب</p>';
+}
+
+function getGlobalHonorFilteredRanked() {
+    const year = document.getElementById('globalHonorYear')?.value || '';
+    const gid = document.getElementById('globalHonorGroup')?.value || '';
+    return students
+      .map((s, idx) => ({ ...s, idx, pts: Number(calculatePoints(s).total) }))
+      .filter(s => (!year || s.year === year) && (!gid || s.groupId === gid))
+      .sort((a, b) => b.pts - a.pts);
+}
+
+function sendHonorTop3WA() {
+    const ranked = getGlobalHonorFilteredRanked().slice(0, 3);
+    if (!ranked.length) return alert('لا يوجد طلاب في الاختيار الحالي');
+    const gid = document.getElementById('globalHonorGroup')?.value || '';
+    const year = document.getElementById('globalHonorYear')?.value || 'كل السنوات';
+    const g = groups.find(x => x.id === gid);
+    const teacherPhoneRaw = g?.teacherPhone || DEFAULT_TEACHER_PHONE;
+    const teacherPhone = teacherPhoneRaw.startsWith('0') ? '2' + teacherPhoneRaw : teacherPhoneRaw;
+    let msg = `🏆 تقرير لوحة الشرف\nالسنة: ${year}\nالمجموعة: ${g?.name || 'كل المجموعات'}\n\n`;
+    ranked.forEach((s, i) => { msg += `${i + 1}) ${s.name} - ${s.pts} نقطة\n`; });
+    window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
         function drawHonor(year) {
@@ -740,10 +1080,20 @@ function renderGlobalHonorBoard() {
                     <hr style="opacity:0.1; margin:10px 0;">
                     <p style="display:flex; justify-content:space-between; font-size:1.2rem; color:var(--success)"><span>المجموع:</span> <b>${p.total}</b></p>
                 </div>
+                <button class="btn btn-primary" style="margin-top:12px; background:var(--whatsapp)" onclick="sendStudentPointsToParent(${i})">إرسال النقط لولي الأمر</button>
                 <button class="btn btn-primary" style="margin-top:20px" onclick="closeModal()">إغلاق</button>
             `;
             document.getElementById('genericModal').style.display = 'flex';
         }
+
+function sendStudentPointsToParent(i) {
+    const s = students[i];
+    const p = calculatePoints(s);
+    if (!s?.pPhone) return alert('رقم ولي الأمر غير موجود');
+    const phone = s.pPhone.startsWith('0') ? '2' + s.pPhone : s.pPhone;
+    const msg = `السلام عليكم\nتقرير نقاط الطالب/ ${s.name}\n\n📅 نقاط الحضور: ${p.attP}\n📚 نقاط الواجب: ${p.hwP}\n✍️ متوسط الامتحانات: ${p.exAvg}\n🏆 المجموع: ${p.total}`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
 
         // --- ميزة الواتساب الجديدة ---
         function showWhatsAppOptions(i) {
@@ -835,7 +1185,7 @@ let attLog = s.attendance.map((a, idx) => `
     function deleteAtt(studentIdx, itemIdx) {
     if(confirm("هل تريد مسح سجل الحضور هذا؟")) {
         students[studentIdx].attendance.splice(itemIdx, 1);
-        save();
+        save(students[studentIdx]);
         showAcademic(studentIdx);
         draw();
     }
@@ -870,7 +1220,7 @@ let attLog = s.attendance.map((a, idx) => `
         function handlePay(i) {
             let s = students[i];
             if(!s.payment) {
-                if(confirm(`تأكيد دفع ${s.name}؟`)) { s.payment = true; s.payDate = getTodayDate(); s.payTimestamp = Date.now(); }
+                if(confirm(`تأكيد دفع ${s.name}؟`)) { s.payment = true; s.payDate = getTodayDate(); s.payTimestamp = getNowMs(); }
             } else { if(confirm("إلغاء الدفع؟")) { s.payment = false; s.payDate = null; s.payTimestamp = null; } }
             save(s); draw();
         }
@@ -879,7 +1229,10 @@ let attLog = s.attendance.map((a, idx) => `
         function addEx(i) {
             let t = document.getElementById('exT').value, s = document.getElementById('exS').value, m = document.getElementById('exM').value;
             if(!t || !s || !m) return alert("يا مستر، من فضلك دخل اسم الامتحان والدرجة كاملة");
-            students[i].exams.push({ title: t, score: s, total: m, date: getTodayDate() });
+            const score = normalizeNumber(s, -1);
+            const total = normalizeNumber(m, -1);
+            if (score < 0 || total <= 0) return alert("من فضلك ادخل درجات صحيحة");
+            students[i].exams.push({ title: t, score, total, date: getTodayDate() });
             save(students[i]); showAcademic(i); draw();
         }
         // وظيفة مسح الواجب
@@ -910,29 +1263,41 @@ function openScanner() {
     if (activeSession?.groupName) {
         document.getElementById('sessionBannerText').textContent = `المجموعة: ${activeSession.groupName} | السكانر لهذه المجموعة`;
     }
+    updateScannerSessionCount();
     document.getElementById('scannerModal').style.display = 'flex';
     if (!html5QrCode) {
         html5QrCode = new Html5Qrcode("reader");
     }
+    if (scannerRunning) return;
     
     html5QrCode.start(
         { facingMode: "environment" }, 
         { fps: 20, qrbox: 220 }, 
         (txt) => {
+            const now = Date.now();
+            const normalized = String(txt || '').trim();
+            if (!normalized) return;
+            if (normalized === lastScanText && (now - lastScanAt) < 1200) return;
+            lastScanText = normalized;
+            lastScanAt = now;
             // 1. بندور على الطالب بالكود (txt) اللي الكاميرا قرأته
-            let s = students.find(x => x.id === txt.trim()); 
+            let s = students.find(x => x.id === normalized); 
 
             if(s) { 
                 if (activeSession && activeSession.groupId && s.groupId !== activeSession.groupId) {
                     alert("⚠️ الطالب ليس في المجموعة النشطة حالياً");
                     return;
                 }
-                // ✅ لو الطالب موجود: بنسجله حضور
-                s.attendance.push(new Date().toLocaleString('ar-EG')); 
-                registerPresentInSession(s.id);
+                // ✅ لو الطالب موجود: بنسجله حضور مرة واحدة فقط لكل حصة
+                const added = registerPresentInSession(s.id);
+                if (!added) {
+                    alert(`ℹ️ الطالب ${s.name} مسجل حضور بالفعل في الحصة الحالية`);
+                    return;
+                }
+                s.attendance.push(new Date().toLocaleString('ar-EG'));
                 save(s); 
+                updateScannerSessionCount();
                 alert("✅ تم تسجيل حضور: " + s.name); 
-                closeScanner(); 
                 draw(); 
             } else {
                 // ❌ لو الكود غريب أو مش متسجل في لستة الطلاب
@@ -940,7 +1305,19 @@ function openScanner() {
                 // ملحوظة: مش هنقفل السكانر (closeScanner) هنا عشان المدرس يقدر يصور كود تاني صح
             }
         }
-    ).catch(e => console.log("Error starting scanner", e));
+    ).then(() => {
+        scannerRunning = true;
+    }).catch(e => console.log("Error starting scanner", e));
+}
+
+function updateScannerSessionCount() {
+    const countEl = document.getElementById('scannerCountValue');
+    const totalEl = document.getElementById('scannerTotalValue');
+    if (!countEl) return;
+    const count = Array.isArray(activeSession?.presentStudentIds) ? activeSession.presentStudentIds.length : 0;
+    const total = activeSession?.groupId ? students.filter(s => s.groupId === activeSession.groupId).length : 0;
+    countEl.textContent = String(count);
+    if (totalEl) totalEl.textContent = String(total);
 }
 async function closeScanner() {
     // 1. اخفي الشاشة السوداء فوراً عشان المدرس م يحسش بتهنيج
@@ -952,9 +1329,11 @@ async function closeScanner() {
             await html5QrCode.stop();
             // بعد ما تقفل، نمسح الكائن عشان لو فتحنا تاني يبدأ جديد
             html5QrCode = null; 
+            scannerRunning = false;
             console.log("Camera stopped");
         } catch (err) {
             console.log("Camera was already closed or error occurred");
+            scannerRunning = false;
         }
     }
 }
@@ -1000,10 +1379,11 @@ function del(i) {
     if(confirm(`هل أنت متأكد من حذف الطالب: ${s.name} نهائياً؟`)) {
         
         if (navigator.onLine) {
-            studentsRef.doc(s.id).delete().catch(() => enqueueSync({ type: 'delete', id: s.id, ts: Date.now() }));
+            studentsRef.doc(s.id).delete().catch(() => enqueueSync({ type: 'delete', id: s.id, ts: getNowMs() }));
         } else {
-            enqueueSync({ type: 'delete', id: s.id, ts: Date.now() });
+            enqueueSync({ type: 'delete', id: s.id, ts: getNowMs() });
         }
+        deleteItemFromIDB(IDB_STUDENTS, s.id);
 
         students.splice(i, 1);
         
@@ -1020,7 +1400,19 @@ function del(i) {
     const modal = document.querySelector('#genericModal .modal-content');
     if (modal) modal.style.maxWidth = "450px";
 }
-        function clearInputs() { ['name','center','sPhone','pPhone','address'].forEach(id=>document.getElementById(id).value=''); }
+        function clearInputs() {
+    ['name','center','sPhone','pPhone','address'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const year = document.getElementById('year');
+    if (year) year.value = 'الصف الأول الثانوي';
+    const nameEl = document.getElementById('name');
+    if (nameEl) {
+        nameEl.value = '';
+        nameEl.focus();
+    }
+}
        
         draw();
        function handleLogout() {
@@ -1034,13 +1426,27 @@ function del(i) {
 }
 function markAttendanceManually(i) {
     let s = students[i];
-    let today = getTodayDate();
-    
-    // تسجيل الحضور بالوقت والتاريخ الحالي
-    s.attendance.push(new Date().toLocaleString('ar-EG')); 
-    
+    if (!activeSession) {
+        alert("ابدأ الحصة أولاً لتسجيل حضور يدوي");
+        return;
+    }
+    if (activeSession.groupId && s.groupId !== activeSession.groupId) {
+        alert("⚠️ الطالب ليس في المجموعة النشطة حالياً");
+        return;
+    }
+    if (activeSession.presentStudentIds.includes(s.id)) {
+        alert(`ℹ️ الطالب ${s.name} مسجل حضور بالفعل في الحصة الحالية`);
+        return;
+    }
+    if (!confirm(`تأكيد تسجيل حضور يدوي للطالب: ${s.name} ؟`)) return;
+    const added = registerPresentInSession(s.id);
+    if (!added) {
+        alert(`ℹ️ الطالب ${s.name} مسجل حضور بالفعل في الحصة الحالية`);
+        return;
+    }
+    s.attendance.push(new Date().toLocaleString('ar-EG'));
     save(s); // حفظ في الفايربيز والـ localStorage
-    registerPresentInSession(s.id);
+    updateScannerSessionCount();
     draw(); // تحديث الجدول عشان تشوف التغيير
     
     alert("✅ تم تسجيل حضور " + s.name + " يدوياً بنجاح");
@@ -1113,6 +1519,20 @@ function ensureDataShape() {
         if (!s.homeworks) s.homeworks = [];
         if (!s.exams) s.exams = [];
         if (!s.attendance) s.attendance = [];
+        if (!s.attendanceLog) s.attendanceLog = [];
+        s.exams = (s.exams || []).map(ex => ({
+            ...ex,
+            score: normalizeNumber(ex.score, 0),
+            total: normalizeNumber(ex.total, 0)
+        }));
+        if (s.attendance.length && !s.attendanceLog.length) {
+            s.attendanceLog = s.attendance.map((a, idx) => ({
+                date: getTodayDate(),
+                status: 'present',
+                at: a,
+                sessionId: `legacy-${s.id || 'student'}-${idx}`
+            }));
+        }
     });
 }
 
@@ -1171,6 +1591,7 @@ function deleteGroup(groupId, allowStudentsDelete = false) {
     const g = groups.find(x => x.id === groupId);
     if (!g) return;
     const count = students.filter(s => s.groupId === groupId).length;
+    const removedStudents = students.filter(s => s.groupId === groupId);
     if (count > 0) {
         if (!allowStudentsDelete) {
             alert(`لا يمكن حذف المجموعة "${g.name}" لأنها تحتوي على ${count} طالب. ادخل المجموعة واحذفها من الداخل لو عايز حذف الطلاب معها.`);
@@ -1178,17 +1599,36 @@ function deleteGroup(groupId, allowStudentsDelete = false) {
         }
         const ok = confirm(`المجموعة "${g.name}" تحتوي على ${count} طالب.\nهل تريد حذف المجموعة ومعها كل الطلاب نهائياً؟`);
         if (!ok) return;
+        const ok2 = confirm(`تنبيه مهم: هذا سيحذف ${count} طالباً نهائياً من النظام.
+هل تريد المتابعة؟`);
+        if (!ok2) return;
         students = students.filter(s => s.groupId !== groupId);
         localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
     }
     if (!confirm(`تأكيد حذف المجموعة: ${g.name}؟`)) return;
     if (navigator.onLine) {
-        groupsRef.doc(groupId).delete().catch(err => console.log('Failed to delete group from Firestore', err));
-        students.filter(s => s.groupId === groupId).forEach(s => {
-            studentsRef.doc(s.id).delete().catch(err => console.log('Failed to delete student on group removal', err));
+        groupsRef.doc(groupId).delete().catch(err => {
+            console.log('Failed to delete group from Firestore', err);
+            enqueueSync({ type: 'deleteGroup', id: groupId, ts: getNowMs() });
+        });
+        deleteItemFromIDB(IDB_GROUPS, groupId);
+        removedStudents.forEach(s => {
+            studentsRef.doc(s.id).delete().catch(err => {
+                console.log('Failed to delete student on group removal', err);
+                enqueueSync({ type: 'delete', id: s.id, ts: getNowMs() });
+            });
+            deleteItemFromIDB(IDB_STUDENTS, s.id);
+        });
+    } else {
+        enqueueSync({ type: 'deleteGroup', id: groupId, ts: getNowMs() });
+        removedStudents.forEach(s => {
+            enqueueSync({ type: 'delete', id: s.id, ts: getNowMs() });
+            deleteItemFromIDB(IDB_STUDENTS, s.id);
         });
     }
+    students = students.filter(s => s.groupId !== groupId);
     groups = groups.filter(x => x.id !== groupId);
+    localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
     persistGroups();
     if (selectedGroupId === groupId) {
         selectedGroupId = '';
@@ -1284,7 +1724,7 @@ function addGroup() {
     const name = document.getElementById('gName').value.trim();
     if (!name) return alert('اسم المجموعة مطلوب');
     const g = {
-        id: 'G-' + Date.now(),
+        id: 'G-' + getNowMs(),
         name,
         center: document.getElementById('gCenter').value.trim(),
         studyYear: document.getElementById('gYear').value,
@@ -1313,20 +1753,25 @@ function openStartSessionModal() {
 }
 
 function startSessionNow() {
+    if (activeSession && activeSession.id) {
+        alert(`⚠️ يوجد حصة شغالة بالفعل للمجموعة: ${activeSession.groupName || '---'}\nأنهِ الحصة الحالية أولاً قبل بدء حصة جديدة.`);
+        return;
+    }
     const groupId = document.getElementById('sessionGroup').value;
     if (!groupId) return alert('اختر مجموعة');
     const group = groups.find(g => g.id === groupId);
     activeSession = {
-        id: 'S-' + Date.now(),
+        id: 'S-' + getNowMs(),
         groupId,
         groupName: group ? group.name : '',
-        startedAt: Date.now(),
+        startedAt: getNowMs(),
         date: getTodayDate(),
         presentStudentIds: []
     };
     const lbl = document.getElementById('groupLabel');
     if (lbl) lbl.textContent = `📍 ${activeSession.groupName || 'مجموعة'}`;
     localStorage.setItem('active_session', JSON.stringify(activeSession));
+    syncActiveSessionToFirebase();
     applyGroupBackground(activeSession.groupId);
     refreshSessionBanner();
     enterGroup(groupId);
@@ -1383,7 +1828,14 @@ function refreshSessionBanner() {
     if (!activeSession) {
         banner.style.display = 'none';
         const lbl = document.getElementById('groupLabel');
-        if (lbl) lbl.textContent = 'الرئيسية والمالية 🏛️';
+        if (lbl) {
+            if (selectedGroupId) {
+                const g = groups.find(x => x.id === selectedGroupId);
+                lbl.textContent = `📍 ${g?.name || 'مجموعة'} - ${g?.center || ''}`;
+            } else {
+                lbl.textContent = 'الرئيسية والمالية 🏛️';
+            }
+        }
         document.body.style.background = document.body.classList.contains('light-mode')
           ? 'linear-gradient(135deg, #ffffff 0%, #eef2f7 100%)'
           : 'linear-gradient(135deg, #0f0c29 0%, #1f1a44 100%)';
@@ -1409,6 +1861,7 @@ function endActiveSession() {
     });
     activeSession = null;
     localStorage.removeItem('active_session');
+    syncActiveSessionToFirebase();
     document.body.style.background = 'var(--bg)';
     refreshSessionBanner();
     draw();
@@ -1420,9 +1873,13 @@ function applyGroupBackground(groupId) {
 
 function registerPresentInSession(studentId) {
     if (!activeSession) return;
-    if (activeSession.presentStudentIds.includes(studentId)) return;
+    if (!Array.isArray(activeSession.presentStudentIds)) activeSession.presentStudentIds = [];
+    if (activeSession.presentStudentIds.includes(studentId)) return false;
     activeSession.presentStudentIds.push(studentId);
     localStorage.setItem('active_session', JSON.stringify(activeSession));
+    syncActiveSessionToFirebase();
+    updateScannerSessionCount();
+    return true;
 }
 
 function getMissedSessionsCount(student) {
@@ -1432,7 +1889,7 @@ function getMissedSessionsCount(student) {
 
 function getActivePaymentInfo(student) {
     const logs = (student.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0));
-    const now = Date.now();
+    const now = getNowMs();
     for (const p of logs) {
         const ts = Number(p.ts || 0);
         if (!ts) continue;
@@ -1541,23 +1998,31 @@ function getNotebookFinancialStatus(student) {
     const active = getActivePaymentInfo(student);
     const paid = (student.paymentLogs || []).reduce((a,p)=>a+Number(p.amount||0),0);
     const debt = Math.max(calculateRequiredForStudent(student) - paid, 0);
+    const lastThreeTypes = (student.paymentLogs || [])
+      .slice()
+      .sort((a,b)=>Number(b.ts||0)-Number(a.ts||0))
+      .slice(0, 3)
+      .map(p => p.type || '---');
+    const typesHtml = `<div style="margin-top:4px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
+      ${lastThreeTypes.length ? lastThreeTypes.map(t => `<span class="pill" style="font-size:10px;padding:2px 6px;">${t}</span>`).join('') : '<span class="pill" style="font-size:10px;padding:2px 6px;">لا يوجد</span>'}
+    </div>`;
     if (active) {
-        const leftMs = Math.max(Number(active.expiresAt || 0) - Date.now(), 0);
+        const leftMs = Math.max(Number(active.expiresAt || 0) - getNowMs(), 0);
         if (active.type === 'شهر') {
             const days = Math.ceil(leftMs / (24*60*60*1000));
-            return `<b style="color:var(--success)">مدفوع شهر ✅ (${days} يوم)</b>`;
+            return `<b style="color:var(--success)">مدفوع شهر ✅ (${days} يوم)</b>${typesHtml}`;
         }
         if (active.type === 'حصة') {
             const mins = Math.ceil(leftMs / (60*1000));
-            return `<b style="color:var(--success)">مدفوع حصة ✅ (${mins} دقيقة)</b>`;
+            return `<b style="color:var(--success)">مدفوع حصة ✅ (${mins} دقيقة)</b>${typesHtml}`;
         }
         if (active.type === 'مجاني') {
             const mins = Math.ceil(leftMs / (60*1000));
-            return `<b style="color:var(--info)">مجاني 🎁 (${mins} دقيقة)</b>`;
+            return `<b style="color:var(--info)">مجاني 🎁 (${mins} دقيقة)</b>${typesHtml}`;
         }
     }
-    if (debt > 0) return `<b style="color:var(--danger)">مطلوب ${debt}</b>`;
-    return `<b style="color:#adb5bd">غير نشط</b>`;
+    if (debt > 0) return `<b style="color:var(--danger)">مطلوب ${debt}</b>${typesHtml}`;
+    return `<b style="color:#adb5bd">غير نشط</b>${typesHtml}`;
 }
 
 function savePaymentLog(i) {
@@ -1571,10 +2036,10 @@ function savePaymentLog(i) {
     }
     if (amount < 0) return alert('ادخل مبلغ صحيح');
     const remaining = Math.max(required - amount, 0);
-    s.paymentLogs.push({ type, required, amount, remaining, date: getTodayDate(), ts: Date.now() });
+    s.paymentLogs.push({ type, required, amount, remaining, date: getTodayDate(), ts: getNowMs() });
     s.payment = true;
     s.payDate = getTodayDate();
-    s.payTimestamp = Date.now();
+    s.payTimestamp = getNowMs();
     s.paymentType = type;
     if (type === 'شهر' && required > 0) s.monthlyFee = required;
     if (type === 'حصة' && required > 0) s.sessionFee = required;
@@ -1586,13 +2051,14 @@ function savePaymentLog(i) {
 function updateKPIs() {
     const today = getTodayDate();
     const todayCollected = students.reduce((acc, s) => acc + (s.paymentLogs || []).filter(p => p.date === today).reduce((a, p) => a + Number(p.amount || 0), 0), 0);
+    const todayExpenses = (expenses || []).filter(e => e.date === today).reduce((a, e) => a + normalizeNumber(e.amount, 0), 0);
     const debts = students.filter(s => {
       normalizePaymentStatus(s);
       const required = calculateRequiredForStudent(s);
       const paid = (s.paymentLogs || []).reduce((a,p)=>a+Number(p.amount||0),0);
       return required - paid > 0;
     }).length;
-    document.getElementById('kpiTodayCollected').innerText = todayCollected;
+    document.getElementById('kpiTodayCollected').innerText = `${todayCollected - todayExpenses}`;
     document.getElementById('kpiDebts').innerText = debts;
     document.getElementById('kpiGroups').innerText = groups.length;
 }
@@ -1601,8 +2067,16 @@ function openFinancialDashboard() {
     const allLogs = [];
     students.forEach(s => (s.paymentLogs || []).forEach(p => allLogs.push({ ...p, studentName: s.name, year: s.year, groupName: s.groupName || '' })));
     const rows = allLogs.slice().reverse().map(l => `<div class="log-item"><b>${l.studentName}</b> | ${l.amount} | ${l.type} | ${l.groupName || '---'} | ${l.date}</div>`).join('');
+    const totalIncome = allLogs.reduce((a, l) => a + normalizeNumber(l.amount, 0), 0);
+    const totalExpenses = (expenses || []).reduce((a, e) => a + normalizeNumber(e.amount, 0), 0);
+    const netProfit = totalIncome - totalExpenses;
     document.getElementById('modalBody').innerHTML = `
       <h3>لوحة المالية</h3>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div>${totalIncome}</div><small>إجمالي الإيرادات</small></div>
+        <div class="kpi-card"><div>${totalExpenses}</div><small>إجمالي المصروفات</small></div>
+        <div class="kpi-card"><div style="color:${netProfit >= 0 ? 'var(--success)' : 'var(--danger)'}">${netProfit}</div><small>صافي الربح</small></div>
+      </div>
       <input id="finDateFrom" type="date">
       <input id="finDateTo" type="date">
       <select id="finPreset" onchange="applyFinancePreset(this.value)">
@@ -1620,6 +2094,7 @@ function openFinancialDashboard() {
         <option value="الصف الثالث الثانوي">تالتة ثانوي</option>
       </select>
       <button class="btn btn-primary" onclick="filterFinancialLogs()">تطبيق الفلترة</button>
+      <button class="btn btn-primary" style="background:#8f5b2e" onclick="openExpenseManager()">إدارة المصروفات</button>
       <button class="btn btn-primary" style="background:var(--whatsapp)" onclick="sendFinancialReportWA()">إرسال تقرير واتساب</button>
       <div id="finList" class="mini-list">${rows || '<p>لا يوجد سجل مالي</p>'}</div>
       <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
@@ -1701,17 +2176,143 @@ function getFilteredFinancialLogs() {
     });
 }
 
+function getFilteredExpenses() {
+    const from = document.getElementById('finDateFrom')?.value || '';
+    const to = document.getElementById('finDateTo')?.value || '';
+    const norm = (v) => {
+      if (!v) return '';
+      const s = String(v);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+        const [y,m,d] = s.split('-');
+        return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      }
+      return s;
+    };
+    return (expenses || []).filter(e => {
+      const d = norm(e.date);
+      return (!from || d >= from) && (!to || d <= to);
+    });
+}
+
 function filterFinancialLogs() {
     const logs = getFilteredFinancialLogs();
-    document.getElementById('finList').innerHTML = logs.slice().reverse().map(l => `<div class="log-item"><b>${l.studentName}</b> | ${l.amount} | ${l.type} | ${l.groupName || '---'} | ${l.date}</div>`).join('') || '<p>لا يوجد نتائج</p>';
+    const ex = getFilteredExpenses();
+    const income = logs.reduce((a, l) => a + normalizeNumber(l.amount, 0), 0);
+    const expenseTotal = ex.reduce((a, e) => a + normalizeNumber(e.amount, 0), 0);
+    const net = income - expenseTotal;
+    const incomeRows = logs.slice().reverse().map(l => `<div class="log-item"><b>${l.studentName}</b> | ${l.amount} | ${l.type} | ${l.groupName || '---'} | ${l.date}</div>`).join('') || '<p>لا يوجد إيرادات</p>';
+    const expenseRows = ex.slice().reverse().map(e => `<div class="log-item" style="border-right-color:#8f5b2e;"><b>${e.title || 'مصروف'}</b> | ${e.amount} | ${e.category || 'أخرى'} | ${e.date}</div>`).join('') || '<p>لا يوجد مصروفات</p>';
+    document.getElementById('finList').innerHTML = `
+      <div class="log-item"><b>إيرادات الفترة:</b> ${income} | <b>مصروفات الفترة:</b> ${expenseTotal} | <b style="color:${net>=0?'var(--success)':'var(--danger)'}">الصافي: ${net}</b></div>
+      <h4 style="margin:8px 0">الإيرادات</h4>${incomeRows}
+      <h4 style="margin:8px 0">المصروفات</h4>${expenseRows}
+    `;
 }
 
 function sendFinancialReportWA() {
     const logs = getFilteredFinancialLogs();
+    const ex = getFilteredExpenses();
     const total = logs.reduce((a, l) => a + Number(l.amount || 0), 0);
-    let msg = `📊 تقرير مالي\nعدد العمليات: ${logs.length}\nالإجمالي: ${total}\n\n`;
+    const totalExpenses = ex.reduce((a, e) => a + normalizeNumber(e.amount, 0), 0);
+    const netProfit = total - totalExpenses;
+    const from = document.getElementById('finDateFrom')?.value || '';
+    const to = document.getElementById('finDateTo')?.value || '';
+    const dayNameAr = (ymd) => {
+        if (!ymd) return '';
+        const [yy, mm, dd] = String(ymd).split('-').map(Number);
+        if (!yy || !mm || !dd) return '';
+        const days = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+        const d = new Date(yy, mm - 1, dd);
+        return days[d.getDay()] || '';
+    };
+    const rangeText = (() => {
+        if (from && to && from === to) return `${from} (${dayNameAr(from)})`;
+        if (from && to) return `من ${from} (${dayNameAr(from)}) إلى ${to} (${dayNameAr(to)})`;
+        if (from) return `من ${from} (${dayNameAr(from)})`;
+        if (to) return `حتى ${to} (${dayNameAr(to)})`;
+        return `اليوم ${getTodayDate()} (${dayNameAr(toInputDate(getTodayDate()))})`;
+    })();
+    let msg = `📊 تقرير مالي\nالفترة: ${rangeText}\nعدد العمليات: ${logs.length}\nإجمالي الإيرادات: ${total}\nإجمالي المصروفات: ${totalExpenses}\nصافي الربح: ${netProfit}\n\n`;
     logs.slice(0, 30).forEach((l, idx) => { msg += `${idx + 1}) ${l.studentName} - ${l.amount} - ${l.type} - ${l.date}\n`; });
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function openExpenseManager() {
+    const rows = (expenses || []).slice().sort((a,b)=>normalizeNumber(b.ts,0)-normalizeNumber(a.ts,0)).map(e => `
+      <div class="log-item" style="display:flex;justify-content:space-between;align-items:center;border-right:4px solid #8f5b2e;">
+        <div><b>${e.title || 'مصروف'}</b><br><small>${e.category || 'أخرى'} | ${e.date || '---'} | ${normalizeNumber(e.amount,0)}</small><br><small>${e.notes || ''}</small></div>
+        <button class="btn" style="background:var(--danger)" onclick="deleteExpense('${e.id}')">حذف</button>
+      </div>
+    `).join('');
+    document.getElementById('modalBody').innerHTML = `
+      <h3>💸 إدارة المصروفات</h3>
+      <input id="expTitle" placeholder="عنوان المصروف (مثال: إيجار القاعة)">
+      <input id="expAmount" type="number" placeholder="المبلغ">
+      <select id="expCategory">
+        <option value="إيجار">إيجار</option>
+        <option value="كهرباء">كهرباء</option>
+        <option value="مرتبات">مرتبات</option>
+        <option value="تصوير">تصوير</option>
+        <option value="صيانة">صيانة</option>
+        <option value="أخرى">أخرى</option>
+      </select>
+      <input id="expDate" type="date">
+      <input id="expNotes" placeholder="ملاحظة اختيارية">
+      <button class="btn btn-primary" style="background:#8f5b2e" onclick="saveExpense()">حفظ المصروف</button>
+      <div class="mini-list" style="margin-top:10px">${rows || '<p>لا يوجد مصروفات</p>'}</div>
+      <button class="btn btn-primary" style="background:#495057" onclick="openFinancialDashboard()">رجوع للمالية</button>
+      <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
+    `;
+    const expDate = document.getElementById('expDate');
+    if (expDate) expDate.value = toInputDate(getTodayDate());
+    document.getElementById('genericModal').style.display = 'flex';
+}
+
+function toInputDate(v) {
+    const p = String(v || '').split('-');
+    if (p.length !== 3) return '';
+    return `${p[0]}-${String(p[1]).padStart(2,'0')}-${String(p[2]).padStart(2,'0')}`;
+}
+
+function fromInputDate(v) {
+    if (!v) return getTodayDate();
+    const p = String(v).split('-');
+    if (p.length !== 3) return getTodayDate();
+    return `${p[0]}-${Number(p[1])}-${Number(p[2])}`;
+}
+
+function saveExpense() {
+    const title = (document.getElementById('expTitle')?.value || '').trim();
+    const amount = normalizeNumber(document.getElementById('expAmount')?.value || 0, 0);
+    const category = document.getElementById('expCategory')?.value || 'أخرى';
+    const date = fromInputDate(document.getElementById('expDate')?.value || '');
+    const notes = (document.getElementById('expNotes')?.value || '').trim();
+    if (!title) return alert('اكتب عنوان المصروف');
+    if (amount <= 0) return alert('اكتب مبلغ صحيح');
+    const exp = { id: `EXP-${getNowMs()}`, title, amount, category, date, notes, ts: getNowMs() };
+    expenses.push(exp);
+    localStorage.setItem('center_expenses_v1', JSON.stringify(expenses));
+    if (navigator.onLine) {
+        expensesRef.doc(exp.id).set(exp, { merge: true }).catch(() => enqueueSync({ type: 'upsertExpense', id: exp.id, payload: exp, ts: getNowMs() }));
+    } else {
+        enqueueSync({ type: 'upsertExpense', id: exp.id, payload: exp, ts: getNowMs() });
+    }
+    updateKPIs();
+    openExpenseManager();
+}
+
+function deleteExpense(id) {
+    if (!confirm('تأكيد حذف المصروف؟')) return;
+    expenses = expenses.filter(e => e.id !== id);
+    localStorage.setItem('center_expenses_v1', JSON.stringify(expenses));
+    if (navigator.onLine) {
+        expensesRef.doc(id).delete().catch(() => enqueueSync({ type: 'deleteExpense', id, ts: getNowMs() }));
+    } else {
+        enqueueSync({ type: 'deleteExpense', id, ts: getNowMs() });
+    }
+    updateKPIs();
+    openExpenseManager();
 }
 
 function openGroupNotebook(forcedGroupId) {
@@ -1723,10 +2324,11 @@ function openGroupNotebook(forcedGroupId) {
     const groupStudents = students.filter(s => s.groupId === gid);
     const tableRows = groupStudents.map(s => {
       normalizePaymentStatus(s);
-      const lastAtt = (s.attendance || []).slice(-3).map(() => '✔').join(' ') || '---';
+      const lastAtt = (s.attendanceLog || []).slice(-3).map(a => a.status === 'present' ? '✔' : '✖').join(' ') || '---';
       const lastEx = (s.exams || []).slice(-3).map(e => `[${e.score}/${e.total}]`).join(' | ') || 'لا يوجد';
       const lastHw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || 'لا يوجد';
       const status = getNotebookFinancialStatus(s);
+      const points = calculatePoints(s).total;
       return `
         <tr>
           <td style="position:sticky; right:0; background:#1a1a2e; text-align:right; font-weight:bold; white-space:nowrap; border-left:1px solid #444;">${s.name}</td>
@@ -1734,6 +2336,7 @@ function openGroupNotebook(forcedGroupId) {
           <td style="font-size:11px;">${lastEx}</td>
           <td style="font-size:11px;">${lastHw}</td>
           <td>${status}</td>
+          <td style="font-weight:700;color:var(--success)">${points}</td>
         </tr>
       `;
     }).join('');
@@ -1752,13 +2355,15 @@ function openGroupNotebook(forcedGroupId) {
             <th>آخر 3 امتحانات</th>
             <th>آخر 3 واجبات</th>
             <th>الحالة المالية</th>
+            <th>النقط</th>
           </tr></thead>
-          <tbody>${tableRows || '<tr><td colspan="5">لا يوجد طلاب</td></tr>'}</tbody>
+          <tbody>${tableRows || '<tr><td colspan="6">لا يوجد طلاب</td></tr>'}</tbody>
         </table>
       </div>
       <textarea id="groupNoteText" style="width:100%;min-height:90px;background:rgba(0,0,0,0.1);color:var(--text);border:1px solid rgba(128,128,128,0.2);border-radius:10px;padding:10px;" placeholder="ملاحظات المجموعة..."></textarea>
       <button class="btn btn-primary" onclick="saveGroupNote()">حفظ ملاحظة</button>
       <button class="btn btn-primary" style="background:var(--whatsapp)" onclick="sendGroupNotebookWA()">إرسال ملخص للمدرس</button>
+      <button class="btn btn-primary" style="background:linear-gradient(135deg,#3b5bdb,#7c3aed); box-shadow:0 10px 24px rgba(59,91,219,.35);" onclick="downloadGroupNotebookFile()">⬇️ تحميل الملف PDF</button>
       <div id="groupNotesList" class="mini-list"></div>
       <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
     `;
@@ -1769,13 +2374,68 @@ function openGroupNotebook(forcedGroupId) {
     renderGroupNotes(gid);
 }
 
+function downloadGroupNotebookFile() {
+    const gid = document.getElementById('notebookGroup')?.value || '';
+    const g = groups.find(x => x.id === gid);
+    const list = students.filter(s => s.groupId === gid);
+    const rows = list.map((s, idx) => {
+        const p = calculatePoints(s);
+        const att = (s.attendanceLog || []).slice(-3).map(a => a.status === 'present' ? 'حضور' : 'غياب').join(' | ') || '---';
+        const ex = (s.exams || []).slice(-3).map(e => `${e.score}/${e.total}`).join(' | ') || '---';
+        const hw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || '---';
+        const lastPayTypes = (s.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).slice(0,3).map(x => x.type || '---').join(' | ') || '---';
+        return `<tr>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${idx + 1}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${s.name}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${att}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${ex}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${hw}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${lastPayTypes}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${p.total}</td>
+        </tr>`;
+    }).join('');
+    const wrapper = document.createElement('div');
+    wrapper.style.padding = '14px';
+    wrapper.style.direction = 'rtl';
+    wrapper.style.fontFamily = 'Segoe UI, Tahoma, sans-serif';
+    wrapper.innerHTML = `
+      <h2 style="margin:0 0 8px;">دفتر المجموعة - ${g?.name || '---'}</h2>
+      <div style="margin-bottom:10px;color:#333;">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">#</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">الطالب</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 حصص</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 امتحانات</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 واجبات</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 أنواع دفع</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">النقاط</th>
+        </tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" style="border:1px solid #bbb;padding:8px;text-align:center;">لا يوجد طلاب</td></tr>'}</tbody>
+      </table>
+    `;
+    document.body.appendChild(wrapper);
+    const filename = `دفتر-المجموعة-${(g?.name || 'group').replace(/\s+/g, '-')}.pdf`;
+    html2pdf().set({
+        margin: 8,
+        filename,
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    }).from(wrapper).save().then(() => {
+        wrapper.remove();
+    }).catch(() => {
+        wrapper.remove();
+        alert('حدث خطأ أثناء توليد ملف PDF');
+    });
+}
+
 function saveGroupNote() {
     const gid = document.getElementById('notebookGroup').value;
     const txt = (document.getElementById('groupNoteText').value || '').trim();
     if (!txt) return;
     const notes = JSON.parse(localStorage.getItem('group_notes') || '{}');
     if (!notes[gid]) notes[gid] = [];
-    notes[gid].push({ text: txt, date: getTodayDate(), ts: Date.now() });
+    notes[gid].push({ text: txt, date: getTodayDate(), ts: getNowMs() });
     localStorage.setItem('group_notes', JSON.stringify(notes));
     document.getElementById('groupNoteText').value = '';
     renderGroupNotes(gid);
@@ -1851,26 +2511,38 @@ function deleteReadonlyEntry(studentIdx, listKey, idx) {
 
 function openAllStudentsHub() {
     const total = students.length;
+    allStudentsHubPage = 1;
     document.getElementById('modalBody').innerHTML = `
       <h3>كل الطلاب</h3>
       <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;">
         <div class="log-item"><b>إجمالي الطلاب:</b> ${total}</div>
       </div>
-      <input id="allFName" placeholder="بحث بالاسم" oninput="renderAllStudentsHub()">
-      <select id="allFYear" oninput="renderAllStudentsHub()">
+      <input id="allFName" placeholder="بحث بالاسم" oninput="resetAllStudentsHubPagination()">
+      <select id="allFYear" oninput="resetAllStudentsHubPagination()">
         <option value="">كل السنوات</option>
         <option value="الصف الأول الثانوي">أولى ثانوي</option>
         <option value="الصف الثاني الثانوي">تانية ثانوي</option>
         <option value="الصف الثالث الثانوي">تالتة ثانوي</option>
       </select>
-      <input id="allFSP" placeholder="موبايل الطالب" oninput="renderAllStudentsHub()">
-      <input id="allFPP" placeholder="موبايل ولي الأمر" oninput="renderAllStudentsHub()">
+      <input id="allFSP" placeholder="موبايل الطالب" oninput="resetAllStudentsHubPagination()">
+      <input id="allFPP" placeholder="موبايل ولي الأمر" oninput="resetAllStudentsHubPagination()">
       <div id="allStudentsHubList" class="mini-list"></div>
+      <button id="allStudentsLoadMoreBtn" class="btn btn-primary" style="display:none;background:#3b5bdb" onclick="loadMoreAllStudentsHub()">تحميل 50 طالب إضافي</button>
       <button class="btn btn-primary" style="background:var(--whatsapp)" onclick="sendAllStudentsQuickReportWA()">إرسال تقرير سريع واتساب</button>
       <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
     `;
     renderAllStudentsHub();
     document.getElementById('genericModal').style.display = 'flex';
+}
+
+function resetAllStudentsHubPagination() {
+    allStudentsHubPage = 1;
+    renderAllStudentsHub();
+}
+
+function loadMoreAllStudentsHub() {
+    allStudentsHubPage += 1;
+    renderAllStudentsHub();
 }
 
 function sendAllStudentsQuickReportWA() {
@@ -1894,14 +2566,16 @@ function renderAllStudentsHub() {
     const y = document.getElementById('allFYear')?.value || '';
     const sp = (document.getElementById('allFSP')?.value || '').toLowerCase();
     const pp = (document.getElementById('allFPP')?.value || '').toLowerCase();
-    const rows = students
+    const filtered = students
       .filter(s =>
         (s.name || '').toLowerCase().includes(n) &&
         (y === '' || s.year === y) &&
         (s.sPhone || '').toLowerCase().includes(sp) &&
         (s.pPhone || '').toLowerCase().includes(pp)
-      )
-      .slice(0, 500)
+      );
+    const maxItems = allStudentsHubPage * ALL_STUDENTS_PAGE_SIZE;
+    const visible = filtered.slice(0, maxItems);
+    const rows = visible
       .map((s, i) => {
         const realIdx = students.findIndex(x => x.id === s.id);
         return `<div class="log-item" style="border-right:4px solid ${getGroupThemeById(s.groupId)}">
@@ -1918,8 +2592,9 @@ function renderAllStudentsHub() {
           </div>
         </div>`;
       }).join('');
-    const tooMany = students.length > 500 ? '<p style="opacity:.7">تم عرض أول 500 نتيجة للحفاظ على السرعة</p>' : '';
-    document.getElementById('allStudentsHubList').innerHTML = (rows ? rows : '<p>لا يوجد نتائج</p>') + tooMany;
+    document.getElementById('allStudentsHubList').innerHTML = rows ? rows : '<p>لا يوجد نتائج</p>';
+    const loadBtn = document.getElementById('allStudentsLoadMoreBtn');
+    if (loadBtn) loadBtn.style.display = filtered.length > visible.length ? 'inline-flex' : 'none';
 }
 
 function changeStudentGroup(i) {
@@ -1946,7 +2621,7 @@ function confirmChangeStudentGroup(i) {
 
 function isSessionValid() {
     const exp = Number(localStorage.getItem('session_expiry') || 0);
-    return exp > Date.now();
+    return exp > getNowMs();
 }
 
 async function bootstrapAuthDefaults() {

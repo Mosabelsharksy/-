@@ -1194,12 +1194,6 @@ async function sendQRWhatsApp(i) {
     let s = students[i];
     // Generate and share QR via Web Share API
     await window.WhatsAppFunctions.sendQRCode(s);
-
-    // Also send the text message
-    let msg = `أهلاً يا *${s.name}*.. 🌟 \nده كود الدخول الخاص بك في السنتر. \n\nيرجى حفظ هذه الصورة وإظهارها للسكرتارية عند الدخول لتسجيل حضورك. \n\nبالتوفيق يا بطل! ✨`;
-    
-    let phone = s.sPhone.startsWith('0') ? '2' + s.sPhone : s.sPhone;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
         function changeHonorYear(year, btn) {

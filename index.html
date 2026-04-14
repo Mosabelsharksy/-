@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="../manifest.json">
     <title>MOS3AB</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -105,9 +106,9 @@
             .group-card { min-height: 130px; }
             #groupFilterBox { grid-template-columns: 1fr; }
             .input-row { flex-direction: column; }
-            .table-wrapper { overflow-x: auto; }
-            .table-wrapper table { min-width: 100%; }
-            th, td { padding: 12px 10px; font-size: 13px; }
+            .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .table-wrapper table { min-width: 100%; font-size: 12px; }
+            th, td { padding: 8px 4px; font-size: 11px; white-space: nowrap; }
             .modal-content { width: 95%; max-width: 95%; padding: 18px; }
             .btn { font-size: 14px; padding: 10px; }
             .glass-box { padding: 15px; }
@@ -337,6 +338,12 @@
 </footer>
 
     <script>
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('../sw.js')
+                .then(reg => console.log('SW registered'))
+                .catch(err => console.log('SW registration failed', err));
+        }
         let trustedTimeOffsetMs = Number(localStorage.getItem('trusted_time_offset_ms') || '0');
         let clockTrustState = localStorage.getItem('clock_trust_state') || 'device';
         function getNowMs() {
@@ -504,28 +511,48 @@ async function loadQueueFromIDB() {
 }
 
 async function loadStudentsFromFirestore() {
-    const snapshot = await studentsRef.orderBy('name').get();
-    if (!snapshot.empty) {
-        students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        ensureDataShape();
-        localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
-        saveStudentsToIDB(students);
-    } else {
-        students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
+    try {
+        const snapshot = await studentsRef.orderBy('name').get();
+        if (!snapshot.empty) {
+            students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            ensureDataShape();
+            localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
+            saveStudentsToIDB(students);
+        } else {
+            // Load from IDB first for offline
+            students = await loadStudentsFromIDB();
+            if (!students.length) {
+                students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
+            }
+        }
+    } catch (e) {
+        console.log('Firestore load failed, loading from cache', e);
+        students = await loadStudentsFromIDB();
+        if (!students.length) {
+            students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
+        }
     }
 }
 
 async function loadGroupsFromFirestore() {
-    const snapshot = await groupsRef.orderBy('name').get();
-    if (!snapshot.empty) {
-        groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        persistGroups();
-        await saveGroupsToIDB(groups);
-    } else {
-        groups = loadGroupsFromStorage();
-        groups.forEach(g => {
-            if (g.id) groupsRef.doc(g.id).set(g, { merge: true }).catch(() => {});
-        });
+    try {
+        const snapshot = await groupsRef.orderBy('name').get();
+        if (!snapshot.empty) {
+            groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            persistGroups();
+            await saveGroupsToIDB(groups);
+        } else {
+            groups = await loadGroupsFromIDB();
+            if (!groups.length) {
+                groups = loadGroupsFromStorage();
+            }
+        }
+    } catch (e) {
+        console.log('Firestore load failed, loading from cache', e);
+        groups = await loadGroupsFromIDB();
+        if (!groups.length) {
+            groups = loadGroupsFromStorage();
+        }
     }
     renderGroupSelect();
 }
@@ -711,7 +738,7 @@ window.addEventListener('DOMContentLoaded', () => {
         let allStudentsHubPage = 1;
         const ALL_STUDENTS_PAGE_SIZE = 50;
         const groupThemes = ['#8a2be2', '#0b7285', '#2b8a3e', '#e67700', '#c2255c', '#364fc7'];
-        const DEFAULT_TEACHER_PHONE = "201000000000";
+        const DEFAULT_TEACHER_PHONE = "201234567890"; // غير هذا لرقم المدرس
         let offlineQueue = JSON.parse(localStorage.getItem('offline_queue_v1') || '[]');
 
 function loadGroupsFromStorage() {
@@ -1324,7 +1351,9 @@ function openScanner() {
                     alert(`ℹ️ الطالب ${s.name} مسجل حضور بالفعل في الحصة الحالية`);
                     return;
                 }
+                s.attendance = s.attendance || [];
                 s.attendance.push(new Date().toLocaleString('ar-EG'));
+                addOrUpdateSessionAttendanceLog(s, 'present', activeSession.id);
                 save(s); 
                 updateScannerSessionCount();
                 alert("✅ تم تسجيل حضور: " + s.name); 

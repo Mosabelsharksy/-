@@ -1190,19 +1190,12 @@ function sendStudentPointsToParent(i) {
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-function sendQRWhatsApp(i) {
+async function sendQRWhatsApp(i) {
     let s = students[i];
-    let canvas = document.querySelector("#qArea canvas");
-    
-    if (canvas) {
-        // حركة التحميل التلقائي (بتشتغل 100% على اللاب وتسهل على المستر)
-        let downloadLink = document.createElement('a');
-        downloadLink.setAttribute('download', `QR-${s.name}.png`);
-        downloadLink.setAttribute('href', canvas.toDataURL("image/png"));
-        downloadLink.click();
-    }               
+    // Generate and share QR via Web Share API
+    await window.WhatsAppFunctions.sendQRCode(s);
 
-    // نص الرسالة اللي اتفقنا عليه (ثابت زي ما هو)
+    // Also send the text message
     let msg = `أهلاً يا *${s.name}*.. 🌟 \nده كود الدخول الخاص بك في السنتر. \n\nيرجى حفظ هذه الصورة وإظهارها للسكرتارية عند الدخول لتسجيل حضورك. \n\nبالتوفيق يا بطل! ✨`;
     
     let phone = s.sPhone.startsWith('0') ? '2' + s.sPhone : s.sPhone;

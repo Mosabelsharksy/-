@@ -81,6 +81,14 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.25);
         }
         .group-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.35); }
+        #groupFilterBox {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .input-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .input-row input { flex: 1 1 0; min-width: 0; }
         .pay-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 15px 0; }
         .hw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
         .action-btns { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
@@ -92,12 +100,20 @@
             .nav h2 { font-size: 17px; }
             .pay-grid { grid-template-columns: 1fr; }
             .hub-actions { grid-template-columns: 1fr; }
+            .hub-actions .hub-btn { width: 100%; }
             .quick-actions { grid-template-columns: 1fr; }
             .group-card { min-height: 130px; }
-            .table-wrapper { overflow-x: scroll; }
+            #groupFilterBox { grid-template-columns: 1fr; }
+            .input-row { flex-direction: column; }
+            .table-wrapper { overflow-x: auto; }
+            .table-wrapper table { min-width: 100%; }
+            th, td { padding: 12px 10px; font-size: 13px; }
             .modal-content { width: 95%; max-width: 95%; padding: 18px; }
             .btn { font-size: 14px; padding: 10px; }
             .glass-box { padding: 15px; }
+            footer { padding: 16px 10px; font-size: 13px; }
+            .nav { padding: 12px; }
+            .btn[title="تسجيل خروج"] { width: auto !important; }
         }
        
         .honor-section { background: linear-gradient(45deg, rgba(138,43,226,0.12), rgba(0,212,255,0.12)); border: 2px solid var(--gold); box-shadow: 0 10px 30px rgba(255,215,0,0.1); }
@@ -268,14 +284,14 @@
                 <select id="groupSelect"></select>
             </div>
             <input type="text" id="address" placeholder="العنوان">
-            <div style="display:flex; gap:5px;">
+            <div class="input-row">
                 <input type="tel" id="sPhone" placeholder="رقم الموبايل">
                 <input type="tel" id="pPhone" placeholder="رقم ولي الأمر">
             </div>
             <button class="btn btn-primary" id="mainBtn" onclick="addStudent()">✨ إضافة الطالب</button>
         </div>
         
-        <div id="groupFilterBox" style="display:none; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin-bottom:8px;">
+        <div id="groupFilterBox" style="display:none;">
             <input type="text" id="sN" oninput="draw()" placeholder="🔍 الاسم...">
             <input type="text" id="sSP" oninput="draw()" placeholder="📱 موبايل الطالب">
             <input type="text" id="sPP" oninput="draw()" placeholder="👨‍👩‍👦 موبايل ولي الأمر">
@@ -734,6 +750,20 @@ function save(studentObj) {
     } else {
         enqueueSync({ type: 'upsert', id: studentObj.id, payload: studentObj, ts: getNowMs() });
     }
+}
+
+function addOrUpdateSessionAttendanceLog(student, status, sessionId) {
+    if (!student) return;
+    if (!student.attendanceLog) student.attendanceLog = [];
+    const existing = student.attendanceLog.find(entry => entry.sessionId === sessionId);
+    const now = new Date().toLocaleString('ar-EG');
+    if (existing) {
+        existing.status = status;
+        existing.date = getTodayDate();
+        existing.at = now;
+        return;
+    }
+    student.attendanceLog.push({ date: getTodayDate(), status, at: now, sessionId });
 }
 
 function syncActiveSessionToFirebase() {
@@ -1444,7 +1474,9 @@ function markAttendanceManually(i) {
         alert(`ℹ️ الطالب ${s.name} مسجل حضور بالفعل في الحصة الحالية`);
         return;
     }
+    s.attendance = s.attendance || [];
     s.attendance.push(new Date().toLocaleString('ar-EG'));
+    addOrUpdateSessionAttendanceLog(s, 'present', activeSession.id);
     save(s); // حفظ في الفايربيز والـ localStorage
     updateScannerSessionCount();
     draw(); // تحديث الجدول عشان تشوف التغيير
@@ -1855,8 +1887,17 @@ function endActiveSession() {
     students.forEach((s) => {
         if (s.groupId !== activeSession.groupId) return;
         const attended = activeSession.presentStudentIds.includes(s.id);
-        if (!s.attendanceLog) s.attendanceLog = [];
-        s.attendanceLog.push({ date: activeSession.date, status: attended ? 'present' : 'absent', at: now, sessionId: activeSession.id });
+        s.attendanceLog = s.attendanceLog || [];
+        const existingIndex = s.attendanceLog.findIndex(entry => entry.sessionId === activeSession.id);
+        if (existingIndex >= 0) {
+            if (attended && s.attendanceLog[existingIndex].status !== 'present') {
+                s.attendanceLog[existingIndex].status = 'present';
+                s.attendanceLog[existingIndex].date = activeSession.date;
+                s.attendanceLog[existingIndex].at = now;
+            }
+        } else {
+            s.attendanceLog.push({ date: activeSession.date, status: attended ? 'present' : 'absent', at: now, sessionId: activeSession.id });
+        }
         save(s);
     });
     activeSession = null;
@@ -2385,48 +2426,63 @@ function downloadGroupNotebookFile() {
         const hw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || '---';
         const lastPayTypes = (s.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).slice(0,3).map(x => x.type || '---').join(' | ') || '---';
         return `<tr>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${idx + 1}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${s.name}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${att}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${ex}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${hw}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${lastPayTypes}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${p.total}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;">${idx + 1}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;">${s.name}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;">${att}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;">${ex}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;">${hw}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;">${lastPayTypes}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;">${p.total}</td>
         </tr>`;
     }).join('');
-    const wrapper = document.createElement('div');
-    wrapper.style.padding = '14px';
-    wrapper.style.direction = 'rtl';
-    wrapper.style.fontFamily = 'Segoe UI, Tahoma, sans-serif';
-    wrapper.innerHTML = `
-      <h2 style="margin:0 0 8px;">دفتر المجموعة - ${g?.name || '---'}</h2>
-      <div style="margin-bottom:10px;color:#333;">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</div>
-      <table style="width:100%;border-collapse:collapse;font-size:11px;">
-        <thead><tr>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">#</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">الطالب</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 حصص</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 امتحانات</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 واجبات</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 أنواع دفع</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">النقاط</th>
-        </tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" style="border:1px solid #bbb;padding:8px;text-align:center;">لا يوجد طلاب</td></tr>'}</tbody>
-      </table>
-    `;
-    document.body.appendChild(wrapper);
-    const filename = `دفتر-المجموعة-${(g?.name || 'group').replace(/\s+/g, '-')}.pdf`;
-    html2pdf().set({
-        margin: 8,
-        filename,
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    }).from(wrapper).save().then(() => {
-        wrapper.remove();
-    }).catch(() => {
-        wrapper.remove();
-        alert('حدث خطأ أثناء توليد ملف PDF');
-    });
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert('غير قادر على فتح نافذة الطباعة. تأكد من أن المتصفح يسمح بالنوافذ المنبثقة.');
+        return;
+    }
+    const html = `
+      <html lang="ar" dir="rtl">
+      <head>
+        <meta charset="UTF-8">
+        <title>دفتر المجموعة - ${g?.name || '---'}</title>
+        <style>
+          body { font-family: Tahoma, Arial, sans-serif; margin: 20px; color: #000; }
+          h2 { margin-bottom: 8px; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th, td { border: 1px solid #333; padding: 8px; text-align: center; }
+          th { background: #eee; }
+          tr:nth-child(even) td { background: #f9f9f9; }
+          .header-row { margin-bottom: 10px; }
+        </style>
+      </head>
+      <body>
+        <h2>دفتر المجموعة - ${g?.name || '---'}</h2>
+        <div class="header-row">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>الطالب</th>
+              <th>آخر 3 حصص</th>
+              <th>آخر 3 امتحانات</th>
+              <th>آخر 3 واجبات</th>
+              <th>آخر 3 أنواع دفع</th>
+              <th>النقاط</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="7" style="text-align:center;">لا يوجد طلاب</td></tr>'}
+          </tbody>
+        </table>
+      </body>
+      </html>`;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      // لا تغلق النافذة تلقائياً لكي يقدر المستخدم يطالع قبل الطباعة
+    }, 300);
 }
 
 function saveGroupNote() {

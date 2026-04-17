@@ -96,7 +96,11 @@
         .mobile-row { display: none; }
         .mobile-student-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 10px; }
         .mobile-actions { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; margin-top: 10px; }
+        .all-students-modal .all-student-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+        .all-students-modal .all-student-actions .btn { width: 100%; min-height: 42px; font-size: 13px; }
         @media (max-width: 740px) {
+            .all-students-modal input,
+            .all-students-modal select { width: 100%; box-sizing: border-box; }
             .stats-grid, .kpi-grid, .quick-actions, .hub-actions { grid-template-columns: 1fr; }
             .nav h2 { font-size: 17px; }
             .pay-grid { grid-template-columns: 1fr; }
@@ -162,20 +166,6 @@
     pointer-events: none;
 }
 
-.brand-logo {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 18px;
-    border-radius: 22px;
-    background: linear-gradient(135deg, rgba(138,43,226,0.95), rgba(0,212,255,0.95));
-    display: grid;
-    place-items: center;
-    color: #fff;
-    font-size: 32px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    box-shadow: 0 18px 42px rgba(0,0,0,0.35);
-}
 .login-badge {
     display: inline-block;
     margin-bottom: 10px;
@@ -189,14 +179,6 @@
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-6px); }
 }
-.brand-logo small {
-    display: block;
-    font-size: 10px;
-    letter-spacing: 0.9px;
-    opacity: 0.75;
-    margin-top: 2px;
-}
-
 .login-card h2 { color: #fff; margin-bottom: 6px; font-weight: 800; letter-spacing: .5px; }
 .login-sub { opacity:.85; font-size:14px; margin-bottom: 22px; color: #d8d8ff; }
 
@@ -214,6 +196,8 @@
 }
 
 .login-card button:hover { background: linear-gradient(135deg, #6d23d5, #3456c9); }
+@keyframes caretBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
 .login-footer {
     margin-top: 18px;
     font-size: 12px;
@@ -236,7 +220,6 @@
     <!-- <div class="watermark">Developed by Mosaab</div> -->
     <div id="loginOverlay">
     <div class="login-card">
-        <div class="brand-logo">M<small>MOS3AB</small></div>
         <div class="login-badge">SMART DASHBOARD</div>
         <h2>تسجيل الدخول</h2>
         <div class="login-sub">أدخل بياناتك للوصول إلى لوحة التحكم</div>
@@ -247,6 +230,14 @@
         <div class="login-footer">نسخة متقدمة من نظام MOS3AB لإدارة الطلاب</div>
     </div>
 </div>
+    <div id="welcomeOverlay" aria-live="polite" style="display:none;position:fixed;inset:0;z-index:10002;align-items:center;justify-content:center;background:radial-gradient(circle at 20% 20%,rgba(138,43,226,.35),transparent 45%),radial-gradient(circle at 80% 80%,rgba(0,212,255,.22),transparent 42%),linear-gradient(145deg,#0a0912 0%,#12102a 55%,#06060c 100%);backdrop-filter:blur(12px);flex-direction:column;padding:24px;text-align:center;">
+        <div style="max-width:520px;width:92%;padding:36px 28px;border-radius:28px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);box-shadow:0 28px 80px rgba(0,0,0,.55);position:relative;overflow:hidden;">
+            <div style="position:absolute;inset:-40% -30% auto -30%;height:220px;background:radial-gradient(circle,rgba(138,43,226,.28),transparent 55%);pointer-events:none;"></div>
+            <div id="welcomeTypedText" style="position:relative;font-size:clamp(22px,5vw,32px);font-weight:800;color:#fff;line-height:1.55;min-height:3.2em;text-shadow:0 6px 28px rgba(0,0,0,.45);letter-spacing:.3px;"></div>
+            <div id="welcomeCaret" style="position:relative;display:inline-block;width:10px;height:1.1em;background:linear-gradient(180deg,#fff,#b197fc);border-radius:2px;margin-inline-start:4px;animation:caretBlink 1s step-end infinite;vertical-align:-2px;"></div>
+            <p style="position:relative;margin-top:18px;font-size:13px;opacity:.72;color:#dbe4ff;">نتمنى لك يومًا دراسيًا مُشرقًا ✨</p>
+        </div>
+    </div>
     <div class="nav">
         <div>
             <h2 style="font-size:18px; letter-spacing:1px;">MOS3AB</h2>
@@ -315,6 +306,7 @@
             <input type="text" id="sSP" oninput="draw()" placeholder="📱 موبايل الطالب">
             <input type="text" id="sPP" oninput="draw()" placeholder="👨‍👩‍👦 موبايل ولي الأمر">
         </div>
+        <div id="groupTableSearchMeta" style="display:none; margin-bottom:8px; font-size:12px; opacity:0.9;"></div>
         <div id="groupAdminHint" style="display:none; margin-bottom:12px; font-size:12px; opacity:.85;">قسم الإدارة: تعديل - حذف - حضور يدوي - QR - واتساب - نقل مجموعة</div>
 
         <div class="table-wrapper" id="groupTableBox" style="display:none;">
@@ -332,7 +324,6 @@
         </div>
         <button class="btn btn-primary" id="loadMoreBtn" style="display:none; margin-bottom:20px;" onclick="loadMoreRows()">تحميل المزيد</button>
 
-        <div class="glass-box honor-section" id="groupHonorBox" style="display:none;"></div>
         <div class="glass-box" id="groupDeleteBox" style="display:none;">
             <h4 style="margin-bottom:8px;">إدارة المجموعة الحالية</h4>
             <div class="danger-zone">
@@ -374,6 +365,27 @@ function getNowDateObj() {
     // النتيجة هتكون دايماً "2026-4-2" مثلاً (أرقام إنجليزية ثابتة)
     return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
+        /** يوم الحصة للتقارير: بعد منتصف الليل لحد الفجر نعتبر لسه نفس يوم الحصة السابق */
+        function getLessonDateForReports() {
+            const d = getNowDateObj();
+            if (d.getHours() < 6) {
+                const x = new Date(getNowMs());
+                x.setDate(x.getDate() - 1);
+                return `${x.getFullYear()}-${x.getMonth() + 1}-${x.getDate()}`;
+            }
+            return getTodayDate();
+        }
+        function getStudentAcademicYear(s) {
+            if (!s) return '';
+            const raw = String(s.year || '').trim();
+            if (raw && raw !== 'غير محدد') return raw;
+            const g = groups.find(x => x.id === s.groupId);
+            return (g && g.studyYear) ? g.studyYear : '';
+        }
+        function studentMatchesYearFilter(s, yearVal) {
+            if (!yearVal) return true;
+            return getStudentAcademicYear(s) === yearVal;
+        }
         // 1. إعدادات الفايربيز (الكونفيج بتاعك)
 // const firebaseConfig = {
 //     apiKey: "AIzaSyCqSLhx1LNn26NFxuwQBsgunMQqB7SdxbA",
@@ -385,6 +397,8 @@ function getNowDateObj() {
 //     measurementId: "G-QEFEF1KJXD"
 // };
 // firebase.initializeApp(firebaseConfig);
+ /* لتغيير مشروع Firebase بالكامل: عدّل كائن firebaseConfig فقط (الأسطر التالية حتى إغلاق القوس).
+    باقي الكود يستخدم المتغير db والمراجع studentsRef/groupsRef/... المشتقة منه — لا حاجة لتعديل أكثر من مكان. */
  const firebaseConfig = {
         apiKey: "AIzaSyDQ7SaFCYFkLwcnxpPvJWlrzg_SHoSC0eg",
         authDomain: "elsayed-elsharksy.firebaseapp.com",
@@ -569,6 +583,7 @@ async function loadActiveSessionFromFirestore() {
         const doc = await appStateRef.get();
         if (doc.exists && doc.data()?.id) {
             activeSession = doc.data();
+            ensureActiveSessionShape();
             localStorage.setItem('active_session', JSON.stringify(activeSession));
             return;
         }
@@ -576,6 +591,13 @@ async function loadActiveSessionFromFirestore() {
         console.log('Failed to load active session from Firestore', e);
     }
     activeSession = JSON.parse(localStorage.getItem('active_session') || 'null');
+    ensureActiveSessionShape();
+}
+
+function ensureActiveSessionShape() {
+    if (!activeSession || !activeSession.id) return;
+    if (!Array.isArray(activeSession.presentStudentIds)) activeSession.presentStudentIds = [];
+    if (!activeSession.presenceMethods || typeof activeSession.presenceMethods !== 'object') activeSession.presenceMethods = {};
 }
 
 async function syncTrustedClock() {
@@ -629,6 +651,7 @@ function initRealtimeUpdates() {
             localStorage.removeItem('active_session');
         } else {
             activeSession = remoteSession;
+            ensureActiveSessionShape();
             localStorage.setItem('active_session', JSON.stringify(activeSession));
         }
         refreshSessionBanner();
@@ -645,15 +668,38 @@ async function handleLogin() {
         localStorage.setItem('sessionActive', 'true');
         localStorage.setItem('session_token', String(getNowMs()));
         localStorage.setItem('session_expiry', String(getNowMs() + (12 * 60 * 60 * 1000)));
-        launchApp();
+        document.getElementById('loginOverlay').style.display = 'none';
+        await showTeacherWelcomeSequence();
+        await launchApp();
     } else {
         document.getElementById('loginError').style.display = 'block';
     }
 }
 
+async function showTeacherWelcomeSequence() {
+    const overlay = document.getElementById('welcomeOverlay');
+    const textEl = document.getElementById('welcomeTypedText');
+    const caret = document.getElementById('welcomeCaret');
+    if (!overlay || !textEl) return;
+    const fullText = `أهلاً بيك يا أستاذ ${TEACHER_DISPLAY_NAME} 👋`;
+    overlay.style.display = 'flex';
+    textEl.textContent = '';
+    if (caret) caret.style.visibility = 'visible';
+    const totalMs = 3800;
+    const per = Math.max(42, Math.floor(totalMs / Math.max(1, fullText.length)));
+    for (let i = 0; i <= fullText.length; i++) {
+        textEl.textContent = fullText.slice(0, i);
+        await new Promise(r => setTimeout(r, per));
+    }
+    await new Promise(r => setTimeout(r, 520));
+    overlay.style.display = 'none';
+    if (caret) caret.style.visibility = 'hidden';
+}
+
 // 3. دالة فتح التطبيق وسحب الداتا
 async function launchApp() {
-    document.getElementById('loginOverlay').style.display = 'none';
+    const loginOv = document.getElementById('loginOverlay');
+    if (loginOv) loginOv.style.display = 'none';
     try {
         await Promise.all([loadGroupsFromFirestore(), loadStudentsFromFirestore(), loadExpensesFromFirestore(), loadActiveSessionFromFirestore(), syncTrustedClock()]);
         initRealtimeUpdates();
@@ -674,6 +720,7 @@ async function launchApp() {
         }
         expenses = JSON.parse(localStorage.getItem('center_expenses_v1') || '[]');
         activeSession = JSON.parse(localStorage.getItem('active_session') || 'null');
+        ensureActiveSessionShape();
         ensureDataShape();
         renderGroupSelect();
         draw();
@@ -721,7 +768,6 @@ window.addEventListener('DOMContentLoaded', () => {
         let students = [];
         let editIdx = -1;
         let html5QrCode;
-        let currentHonorYear = 'الصف الأول الثانوي';
         let groups = loadGroupsFromStorage();
         let expenses = JSON.parse(localStorage.getItem('center_expenses_v1') || '[]');
         let activeSession = JSON.parse(localStorage.getItem('active_session') || 'null');
@@ -732,10 +778,13 @@ window.addEventListener('DOMContentLoaded', () => {
         let scannerRunning = false;
         let lastScanText = '';
         let lastScanAt = 0;
+        let scanCooldownUntil = 0;
         let allStudentsHubPage = 1;
         const ALL_STUDENTS_PAGE_SIZE = 50;
         const groupThemes = ['#8a2be2', '#0b7285', '#2b8a3e', '#e67700', '#c2255c', '#364fc7'];
         const DEFAULT_TEACHER_PHONE = "201000000000";
+        /** اسم الأستاذ يظهر في شاشة الترحيب بعد تسجيل الدخول — غيّره لاسمك */
+        const TEACHER_DISPLAY_NAME = 'سيد';
         let offlineQueue = JSON.parse(localStorage.getItem('offline_queue_v1') || '[]');
 
 function loadGroupsFromStorage() {
@@ -840,9 +889,13 @@ function addStudent() {
         mainBtn.innerText = "⏳ جاري الحفظ...";
     }
     try {
-    let n = document.getElementById('name').value;
-    let y = selectedGroupId ? 'غير محدد' : document.getElementById('year').value;
-    if(!n) return alert("الاسم مطلوب!");
+    let n = (document.getElementById('name').value || '').trim();
+    const gActive = selectedGroupId ? groups.find(x => x.id === selectedGroupId) : null;
+    const y = (gActive && gActive.studyYear) ? gActive.studyYear : (document.getElementById('year').value || 'الصف الأول الثانوي');
+    if(!n) {
+        alert("الاسم مطلوب!");
+        return;
+    }
 
     let studentToSave; // متغير هنشيل فيه الطالب اللي هيتبعت للفايربيز
 
@@ -943,12 +996,19 @@ function addStudent() {
             const missedCount = getMissedSessionsCount(s);
             const isDanger = missedCount >= 2;
             const groupTheme = getGroupThemeById(s.groupId);
+            const dispYear = getStudentAcademicYear(s) || '---';
+            const inLiveSession = activeSession && activeSession.groupId && selectedGroupId === activeSession.groupId && s.groupId === activeSession.groupId;
+            const sessionMark = inLiveSession
+                ? (activeSession.presentStudentIds.includes(s.id)
+                    ? '<span title="تم تسجيل الحضور في الحصة" style="font-size:1.15em">✅</span> '
+                    : '<span title="لم يُسجَّل في الحصة بعد" style="font-size:1.15em;filter:drop-shadow(0 0 8px rgba(255,214,102,.95))">💡</span> ')
+                : '';
             if (isMobileView) {
                 html += `<tr class="mobile-row">
                 <td colspan="4">
                     <div class="mobile-student-card ${isDanger ? 'danger-glow' : ''}" style="border-right:4px solid ${groupTheme}">
-                        <b>${s.name}</b><br>
-                        <small style="opacity:.9">🎓 ${s.year} | 📍 ${s.center}</small><br>
+                        <b>${sessionMark}${s.name}</b><br>
+                        <small style="opacity:.9">🎓 ${dispYear} | 📍 ${s.center}</small><br>
                         <span class="pill">👥 ${s.groupName || 'بدون مجموعة'}</span>
                         <span class="pill">🏠 ${s.address || '---'}</span><br>
                         <a class="phone-link" href="tel:${s.sPhone}">📱 الطالب: ${s.sPhone}</a>
@@ -972,8 +1032,8 @@ function addStudent() {
             } else {
             html += `<tr class="desktop-row">
                 <td style="text-align:right; border-right:4px solid ${groupTheme}" class="${isDanger ? 'danger-glow' : ''}">
-                    <b>${s.name}</b><br>
-                    <span style="font-size:10px; color:var(--primary)">🎓 ${s.year} | 📍 ${s.center}</span><br>
+                    <b>${sessionMark}${s.name}</b><br>
+                    <span style="font-size:10px; color:var(--primary)">🎓 ${dispYear} | 📍 ${s.center}</span><br>
                     <span class="pill">👥 ${s.groupName || 'بدون مجموعة'}</span>
                     <span class="pill">🏠 ${s.address || '---'}</span>
                     <a class="phone-link" href="tel:${s.sPhone}">📱 الطالب: ${s.sPhone}</a>
@@ -1005,8 +1065,20 @@ function addStudent() {
     document.getElementById('statTotal').innerText = students.length;
     document.getElementById('statPaid').innerText = students.filter(x=>x.payment).length;
     
-    // رسم لوحة الشرف بعد التأكد من وجود البيانات
-    drawHonor(currentHonorYear);
+    const metaEl = document.getElementById('groupTableSearchMeta');
+    if (metaEl) {
+        if (selectedGroupId && (nT || sPT || pPT)) {
+            metaEl.style.display = 'block';
+            metaEl.style.color = filteredCount === 0 ? 'var(--danger)' : '';
+            metaEl.textContent = filteredCount === 0
+                ? 'لا توجد نتائج مطابقة للبحث الحالي.'
+                : `عرض ${filteredCount} طالب مطابق للبحث.`;
+        } else {
+            metaEl.style.display = 'none';
+            metaEl.textContent = '';
+        }
+    }
+
     document.getElementById('loadMoreBtn').style.display = filteredCount > renderLimit ? 'inline-flex' : 'none';
     updateKPIs();
 }
@@ -1058,13 +1130,13 @@ function openGlobalHonorBoard() {
     document.getElementById('modalBody').innerHTML = `
       <h3>لوحة الشرف العامة</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <select id="globalHonorYear" oninput="renderGlobalHonorBoard()">
+        <select id="globalHonorYear" oninput="renderGlobalHonorBoard()" onchange="renderGlobalHonorBoard()">
           <option value="">كل السنوات</option>
           <option value="الصف الأول الثانوي">أولى ثانوي</option>
           <option value="الصف الثاني الثانوي">تانية ثانوي</option>
           <option value="الصف الثالث الثانوي">تالتة ثانوي</option>
         </select>
-        <select id="globalHonorGroup" oninput="renderGlobalHonorBoard()">
+        <select id="globalHonorGroup" oninput="renderGlobalHonorBoard()" onchange="renderGlobalHonorBoard()">
           <option value="">كل المجموعات</option>
           ${groupOptions}
         </select>
@@ -1082,7 +1154,7 @@ function renderGlobalHonorBoard() {
     const gid = document.getElementById('globalHonorGroup').value;
     const ranked = students
       .map((s, idx) => ({ ...s, idx, pts: Number(calculatePoints(s).total) }))
-      .filter(s => (!year || s.year === year) && (!gid || s.groupId === gid))
+      .filter(s => studentMatchesYearFilter(s, year) && (!gid || s.groupId === gid))
       .sort((a, b) => b.pts - a.pts)
       .slice(0, 300);
     const html = ranked.map((s, i) => `
@@ -1100,7 +1172,7 @@ function getGlobalHonorFilteredRanked() {
     const gid = document.getElementById('globalHonorGroup')?.value || '';
     return students
       .map((s, idx) => ({ ...s, idx, pts: Number(calculatePoints(s).total) }))
-      .filter(s => (!year || s.year === year) && (!gid || s.groupId === gid))
+      .filter(s => studentMatchesYearFilter(s, year) && (!gid || s.groupId === gid))
       .sort((a, b) => b.pts - a.pts);
 }
 
@@ -1116,26 +1188,6 @@ function sendHonorTop3WA() {
     ranked.forEach((s, i) => { msg += `${i + 1}) ${s.name} - ${s.pts} نقطة\n`; });
     window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
-
-        function drawHonor(year) {
-            let filtered = students.map((s, idx) => ({...s, realIdx: idx}))
-                .filter(s => s.year === year)
-                .filter(s => !selectedGroupId || s.groupId === selectedGroupId)
-                .map(s => {
-                    let p = calculatePoints(s);
-                    return { name: s.name, points: p.total, realIdx: s.realIdx };
-                }).sort((a, b) => b.points - a.points);
-
-            let html = '';
-            filtered.forEach((s, idx) => {
-                let color = idx === 0 ? 'var(--gold)' : (idx === 1 ? '#C0C0C0' : (idx === 2 ? '#CD7F32' : 'rgba(255,255,255,0.3)'));
-                html += `<div class="honor-card" style="border-color:${color}" onclick="showPointsDetail(${s.realIdx})">
-                    <div style="font-size:12px; font-weight:bold">${idx + 1}. ${s.name}</div>
-                    <div style="color:var(--success); font-size:11px;">${s.points} نقطة</div>
-                </div>`;
-            });
-            document.getElementById('honorGrid').innerHTML = html || '<p style="padding:10px; opacity:0.5">لا يوجد طلاب</p>';
-        }
 
         function showPointsDetail(i) {
             let s = students[i]; let p = calculatePoints(s);
@@ -1181,17 +1233,18 @@ function sendStudentPointsToParent(i) {
 
         function sendWAReport(i, type) {
             let s = students[i];
-            let today = getTodayDate();
+            const lessonDay = getLessonDateForReports();
+            const clockDay = getTodayDate();
             let msg = "";
 
             if (type === 'absent') {
-                msg = `السلام عليكم يا فندم.. بنحيط سيادتكم علماً بأن الطالب/ *${s.name}* قد تغيب عن حصة اليوم الموافق *${today}*. نرجو المتابعة والاهتمام.`;
+                msg = `السلام عليكم يا فندم.. بنحيط سيادتكم علماً بأن الطالب/ *${s.name}* قد تغيب عن حصة اليوم الموافق *${lessonDay}*. نرجو المتابعة والاهتمام.`;
             } else {
-                // البحث عن بيانات اليوم (واجب أو امتحان)
-                let todayHW = s.homeworks.find(h => h.date === today);
-                let todayEX = s.exams.find(e => e.date === today);
+                // بيانات نفس يوم الحصة (بعد منتصف الليل لسه نحسبه نفس اليوم)
+                const todayHW = (s.homeworks || []).find(h => h.date === lessonDay) || (s.homeworks || []).find(h => h.date === clockDay);
+                const todayEX = (s.exams || []).find(e => e.date === lessonDay) || (s.exams || []).find(e => e.date === clockDay);
                 
-                msg = `السلام عليكم يا فندم.. تقرير الطالب/ *${s.name}* ليوم *${today}*:\n\n`;
+                msg = `السلام عليكم يا فندم.. تقرير الطالب/ *${s.name}* ليوم *${lessonDay}*:\n\n`;
                 msg += `✅ الحضور: *تم الحضور*\n`;
                 msg += `📚 تقييم الواجب: *${todayHW ? todayHW.rank : 'لم يتم التقييم بعد'}*\n`;
                 if(todayEX) msg += `📝 درجة امتحان اليوم: *${todayEX.score} من ${todayEX.total}*\n`;
@@ -1225,12 +1278,6 @@ function sendQRWhatsApp(i) {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-        function changeHonorYear(year, btn) {
-            currentHonorYear = year;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            drawHonor(year);
-        }
 function showAcademic(i) {
             let s = students[i];
             
@@ -1334,6 +1381,7 @@ function openScanner() {
         alert("ابدأ حصة جديدة الأول");
         return;
     }
+    ensureActiveSessionShape();
     if (activeSession?.groupName) {
         document.getElementById('sessionBannerText').textContent = `المجموعة: ${activeSession.groupName} | السكانر لهذه المجموعة`;
     }
@@ -1343,47 +1391,62 @@ function openScanner() {
         html5QrCode = new Html5Qrcode("reader");
     }
     if (scannerRunning) return;
-    
+
+    const qrSize = Math.min(280, Math.max(160, Math.floor(window.innerWidth * 0.68)));
+    const camConfig = { facingMode: "environment" };
+    const scanConfig = { fps: 10, qrbox: Math.round(qrSize) };
+
     html5QrCode.start(
-        { facingMode: "environment" }, 
-        { fps: 20, qrbox: 220 }, 
+        camConfig,
+        scanConfig,
         (txt) => {
             const now = Date.now();
+            if (now < scanCooldownUntil) return;
             const normalized = String(txt || '').trim();
             if (!normalized) return;
-            if (normalized === lastScanText && (now - lastScanAt) < 1200) return;
+            if (normalized === lastScanText && (now - lastScanAt) < 2200) return;
             lastScanText = normalized;
             lastScanAt = now;
-            // 1. بندور على الطالب بالكود (txt) اللي الكاميرا قرأته
-            let s = students.find(x => x.id === normalized); 
 
-            if(s) { 
-                if (activeSession && activeSession.groupId && s.groupId !== activeSession.groupId) {
+            let s = students.find(x => x.id === normalized);
+
+            if (s) {
+                if (activeSession.groupId && s.groupId !== activeSession.groupId) {
                     alert("⚠️ الطالب ليس في المجموعة النشطة حالياً");
                     return;
                 }
-                // ✅ لو الطالب موجود: بنسجله حضور مرة واحدة فقط لكل حصة
-                const added = registerPresentInSession(s.id);
-                if (!added) {
-                    alert(`ℹ️ الطالب ${s.name} مسجل حضور بالفعل في الحصة الحالية`);
+                const reg = registerPresentInSession(s.id, 'scanner');
+                if (!reg.ok) {
+                    alert(reg.previousMethod === 'manual'
+                        ? `ℹ️ الطالب ${s.name} تم تسجيل حضوره يدوياً في هذه الحصة — لا يمكن التسجيل بالسكانر مرة أخرى.`
+                        : `ℹ️ الطالب ${s.name} مسجل بالفعل بالسكانر في هذه الحصة.`);
                     return;
                 }
-                s.attendance = s.attendance || [];
-                const hasPresentForSession = (s.attendanceLog || []).some(x => x.sessionId === activeSession.id && x.status === 'present');
-                if (!hasPresentForSession) s.attendance.push(new Date().toLocaleString('ar-EG'));
-                save(s); 
+                upsertStudentSessionPresence(s, 'scanner');
+                save(s);
                 updateScannerSessionCount();
-                alert("✅ تم تسجيل حضور: " + s.name); 
-                draw(); 
+                alert("✅ تم تسجيل حضور (سكانر): " + s.name);
+                draw();
+                scanCooldownUntil = Date.now() + 550;
+                if (html5QrCode && typeof html5QrCode.pause === 'function') {
+                    try {
+                        html5QrCode.pause(true);
+                        setTimeout(() => {
+                            try { html5QrCode.resume(); } catch (_) {}
+                        }, 520);
+                    } catch (_) {}
+                }
             } else {
-                // ❌ لو الكود غريب أو مش متسجل في لستة الطلاب
                 alert("⚠️ عذراً.. الكود ده مش متسجل في السيستم عندنا!");
-                // ملحوظة: مش هنقفل السكانر (closeScanner) هنا عشان المدرس يقدر يصور كود تاني صح
             }
         }
     ).then(() => {
         scannerRunning = true;
-    }).catch(e => console.log("Error starting scanner", e));
+    }).catch(e => {
+        console.log("Error starting scanner", e);
+        scannerRunning = false;
+        alert("تعذّر تشغيل الكاميرا. تأكد من السماح بالوصول للكاميرا، أو جرّب إغلاق التطبيقات الأخرى التي تستخدمها.");
+    });
 }
 
 function updateScannerSessionCount() {
@@ -1396,21 +1459,19 @@ function updateScannerSessionCount() {
     if (totalEl) totalEl.textContent = String(total);
 }
 async function closeScanner() {
-    // 1. اخفي الشاشة السوداء فوراً عشان المدرس م يحسش بتهنيج
     document.getElementById('scannerModal').style.display = 'none';
-    
-    // 2. حاول تقفل الكاميرا بروقان في الخلفية
+
     if (html5QrCode) {
         try {
             await html5QrCode.stop();
-            // بعد ما تقفل، نمسح الكائن عشان لو فتحنا تاني يبدأ جديد
-            html5QrCode = null; 
-            scannerRunning = false;
-            console.log("Camera stopped");
         } catch (err) {
-            console.log("Camera was already closed or error occurred");
-            scannerRunning = false;
+            console.log("Scanner stop:", err);
         }
+        try {
+            if (typeof html5QrCode.clear === 'function') html5QrCode.clear();
+        } catch (_) {}
+        html5QrCode = null;
+        scannerRunning = false;
     }
 }
         function prepareQR(i) {
@@ -1466,7 +1527,6 @@ function del(i) {
         localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
         
         draw(); 
-        drawHonor(currentHonorYear); 
         
         alert("تم الحذف بنجاح");
 
@@ -1486,7 +1546,7 @@ function del(i) {
     const nameEl = document.getElementById('name');
     if (nameEl) {
         nameEl.value = '';
-        nameEl.focus();
+        try { nameEl.focus(); } catch (_) {}
     }
 }
        
@@ -1506,27 +1566,31 @@ function markAttendanceManually(i) {
         alert("ابدأ الحصة أولاً لتسجيل حضور يدوي");
         return;
     }
+    ensureActiveSessionShape();
     if (activeSession.groupId && s.groupId !== activeSession.groupId) {
         alert("⚠️ الطالب ليس في المجموعة النشطة حالياً");
         return;
     }
     if (activeSession.presentStudentIds.includes(s.id)) {
-        alert(`ℹ️ الطالب ${s.name} مسجل حضور بالفعل في الحصة الحالية`);
+        const pm = activeSession.presenceMethods[s.id];
+        alert(pm === 'scanner'
+            ? `ℹ️ الطالب ${s.name} تم تسجيل حضوره بالسكانر في هذه الحصة — لا يمكن التسجيل يدوياً مرة أخرى.`
+            : `ℹ️ الطالب ${s.name} مسجل حضور يدوي بالفعل في هذه الحصة.`);
         return;
     }
     if (!confirm(`تأكيد تسجيل حضور يدوي للطالب: ${s.name} ؟`)) return;
-    const added = registerPresentInSession(s.id);
-    if (!added) {
-        alert(`ℹ️ الطالب ${s.name} مسجل حضور بالفعل في الحصة الحالية`);
+    const reg = registerPresentInSession(s.id, 'manual');
+    if (!reg.ok) {
+        alert(reg.previousMethod === 'scanner'
+            ? `ℹ️ الطالب ${s.name} تم تسجيل حضوره بالسكانر في هذه الحصة — لا يمكن التسجيل يدوياً مرة أخرى.`
+            : `ℹ️ الطالب ${s.name} مسجل حضور بالفعل في الحصة الحالية.`);
         return;
     }
-    s.attendance = s.attendance || [];
-    const hasPresentForSession = (s.attendanceLog || []).some(x => x.sessionId === activeSession.id && x.status === 'present');
-    if (!hasPresentForSession) s.attendance.push(new Date().toLocaleString('ar-EG'));
-    save(s); // حفظ في الفايربيز والـ localStorage
+    upsertStudentSessionPresence(s, 'manual');
+    save(s);
     updateScannerSessionCount();
-    draw(); // تحديث الجدول عشان تشوف التغيير
-    
+    draw();
+
     alert("✅ تم تسجيل حضور " + s.name + " يدوياً بنجاح");
 }
 
@@ -1593,6 +1657,10 @@ function ensureDataShape() {
         if (!s.paymentLogs) s.paymentLogs = [];
         if (!s.groupId) s.groupId = '';
         if (!s.groupName) s.groupName = getGroupNameById(s.groupId);
+        const gg = groups.find(x => x.id === s.groupId);
+        if ((!s.year || String(s.year).trim() === 'غير محدد') && gg && gg.studyYear) {
+            s.year = gg.studyYear;
+        }
         if (!s.address) s.address = '';
         if (!s.homeworks) s.homeworks = [];
         if (!s.exams) s.exams = [];
@@ -1647,6 +1715,7 @@ function openGroupManager() {
     document.getElementById('modalBody').innerHTML = `
       <h3>إدارة المجموعات</h3>
       <input id="groupNameFilter" placeholder="ابحث باسم المجموعة..." oninput="filterGroupsInModal()">
+      <div id="groupModalSearchMeta" style="font-size:12px;margin:6px 0;opacity:0.9;"></div>
       <button class="btn btn-primary" onclick="openAddGroupModal()">إضافة مجموعة جديدة</button>
       <div class="groups-grid" id="groupsGridWrap" style="margin-top:10px;">${list || '<p>لا توجد مجموعات</p>'}</div>
       <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
@@ -1657,6 +1726,11 @@ function openGroupManager() {
 function filterGroupsInModal() {
     const q = (document.getElementById('groupNameFilter').value || '').toLowerCase();
     const filtered = groups.filter(g => (g.name || '').toLowerCase().includes(q));
+    const meta = document.getElementById('groupModalSearchMeta');
+    if (meta) {
+        if (!q.trim()) meta.textContent = '';
+        else meta.textContent = filtered.length ? `عرض ${filtered.length} مجموعة مطابقة.` : 'لا توجد مجموعات مطابقة للبحث.';
+    }
     document.getElementById('groupsGridWrap').innerHTML = filtered.map(g => `
       <div class="group-card" style="background:linear-gradient(135deg, ${g.theme || '#667eea'}cc, #161625);" onclick="enterGroup('${g.id}')">
         <b style="font-size:17px">${g.name}</b>
@@ -1852,7 +1926,8 @@ function startSessionNow() {
         groupName: group ? group.name : '',
         startedAt: getNowMs(),
         date: getTodayDate(),
-        presentStudentIds: []
+        presentStudentIds: [],
+        presenceMethods: {}
     };
     const lbl = document.getElementById('groupLabel');
     if (lbl) lbl.textContent = `📍 ${activeSession.groupName || 'مجموعة'}`;
@@ -1964,15 +2039,32 @@ function applyGroupBackground(groupId) {
     document.body.style.background = 'linear-gradient(135deg, #0f0c29 0%, #1f1a44 100%)';
 }
 
-function registerPresentInSession(studentId) {
-    if (!activeSession) return;
+function registerPresentInSession(studentId, method) {
+    if (!activeSession) return { ok: false };
+    ensureActiveSessionShape();
     if (!Array.isArray(activeSession.presentStudentIds)) activeSession.presentStudentIds = [];
-    if (activeSession.presentStudentIds.includes(studentId)) return false;
+    if (activeSession.presentStudentIds.includes(studentId)) {
+        return { ok: false, previousMethod: activeSession.presenceMethods[studentId] || null };
+    }
     activeSession.presentStudentIds.push(studentId);
+    activeSession.presenceMethods[studentId] = method;
     localStorage.setItem('active_session', JSON.stringify(activeSession));
     syncActiveSessionToFirebase();
     updateScannerSessionCount();
-    return true;
+    return { ok: true };
+}
+
+function upsertStudentSessionPresence(student, method) {
+    if (!activeSession) return;
+    student.attendanceLog = student.attendanceLog || [];
+    const now = new Date().toLocaleString('ar-EG');
+    let existing = student.attendanceLog.find(x => x.sessionId === activeSession.id);
+    if (existing && existing.status === 'present') return;
+    const entry = { date: activeSession.date, status: 'present', at: now, sessionId: activeSession.id, source: method };
+    if (existing) Object.assign(existing, entry);
+    else student.attendanceLog.push(entry);
+    student.attendance = student.attendance || [];
+    student.attendance.push(now);
 }
 
 function getMissedSessionsCount(student) {
@@ -2116,6 +2208,24 @@ function getNotebookFinancialStatus(student) {
     }
     if (debt > 0) return `<b style="color:var(--danger)">مطلوب ${debt}</b>${typesHtml}`;
     return `<b style="color:#adb5bd">غير نشط</b>${typesHtml}`;
+}
+
+function getNotebookFinancialPlain(s) {
+    normalizePaymentStatus(s);
+    const active = getActivePaymentInfo(s);
+    if (active) {
+        if (active.type === 'شهر') return 'مدفوع شهر';
+        if (active.type === 'حصة') return 'مدفوع حصة';
+        if (active.type === 'مجاني') return 'مجاني';
+    }
+    const paid = (s.paymentLogs || []).reduce((a, p) => a + Number(p.amount || 0), 0);
+    const debt = Math.max(calculateRequiredForStudent(s) - paid, 0);
+    if (debt > 0) return `مستحق ${debt}`;
+    return '—';
+}
+
+function escapeHtmlNotebook(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function savePaymentLog(i) {
@@ -2420,6 +2530,7 @@ function openGroupNotebook(forcedGroupId) {
       const lastAtt = (s.attendanceLog || []).slice(-3).map(a => a.status === 'present' ? '✔' : '✖').join(' ') || '---';
       const lastEx = (s.exams || []).slice(-3).map(e => `[${e.score}/${e.total}]`).join(' | ') || 'لا يوجد';
       const lastHw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || 'لا يوجد';
+      const lastPayStr = (s.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).slice(0,3).map(p => p.type || '—').join(' | ') || '—';
       const status = getNotebookFinancialStatus(s);
       const points = calculatePoints(s).total;
       return `
@@ -2428,6 +2539,7 @@ function openGroupNotebook(forcedGroupId) {
           <td>${lastAtt}</td>
           <td style="font-size:11px;">${lastEx}</td>
           <td style="font-size:11px;">${lastHw}</td>
+          <td style="font-size:11px;">${lastPayStr}</td>
           <td>${status}</td>
           <td style="font-weight:700;color:var(--success)">${points}</td>
         </tr>
@@ -2447,15 +2559,17 @@ function openGroupNotebook(forcedGroupId) {
             <th>آخر 3 حصص</th>
             <th>آخر 3 امتحانات</th>
             <th>آخر 3 واجبات</th>
+            <th>آخر 3 دفعات</th>
             <th>الحالة المالية</th>
             <th>النقط</th>
           </tr></thead>
-          <tbody>${tableRows || '<tr><td colspan="6">لا يوجد طلاب</td></tr>'}</tbody>
+          <tbody>${tableRows || '<tr><td colspan="7">لا يوجد طلاب</td></tr>'}</tbody>
         </table>
       </div>
       <textarea id="groupNoteText" style="width:100%;min-height:90px;background:rgba(0,0,0,0.1);color:var(--text);border:1px solid rgba(128,128,128,0.2);border-radius:10px;padding:10px;" placeholder="ملاحظات المجموعة..."></textarea>
       <button class="btn btn-primary" onclick="saveGroupNote()">حفظ ملاحظة</button>
       <button class="btn btn-primary" style="background:var(--whatsapp)" onclick="sendGroupNotebookWA()">إرسال ملخص للمدرس</button>
+      <button class="btn btn-primary" style="background:#343a40;" onclick="printGroupNotebookPage()">🖨️ طباعة / معاينة</button>
       <button class="btn btn-primary" style="background:linear-gradient(135deg,#3b5bdb,#7c3aed); box-shadow:0 10px 24px rgba(59,91,219,.35);" onclick="downloadGroupNotebookFile()">⬇️ تحميل الملف PDF</button>
       <div id="groupNotesList" class="mini-list"></div>
       <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
@@ -2472,39 +2586,48 @@ function downloadGroupNotebookFile() {
     const g = groups.find(x => x.id === gid);
     const list = students.filter(s => s.groupId === gid);
     const rows = list.map((s, idx) => {
+        normalizePaymentStatus(s);
         const p = calculatePoints(s);
         const att = (s.attendanceLog || []).slice(-3).map(a => a.status === 'present' ? 'حضور' : 'غياب').join(' | ') || '---';
         const ex = (s.exams || []).slice(-3).map(e => `${e.score}/${e.total}`).join(' | ') || '---';
         const hw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || '---';
         const lastPayTypes = (s.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).slice(0,3).map(x => x.type || '---').join(' | ') || '---';
+        const fin = getNotebookFinancialPlain(s);
+        const nm = escapeHtmlNotebook(s.name);
         return `<tr>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${idx + 1}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${s.name}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${att}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${ex}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${hw}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${lastPayTypes}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${p.total}</td>
+          <td style="border:1px solid #222;padding:8px;text-align:center;color:#111;font-size:13px;">${idx + 1}</td>
+          <td style="border:1px solid #222;padding:8px;text-align:right;color:#111;font-size:13px;font-weight:700;">${nm}</td>
+          <td style="border:1px solid #222;padding:8px;text-align:center;color:#111;font-size:12px;">${att}</td>
+          <td style="border:1px solid #222;padding:8px;text-align:center;color:#111;font-size:12px;">${ex}</td>
+          <td style="border:1px solid #222;padding:8px;text-align:center;color:#111;font-size:12px;">${hw}</td>
+          <td style="border:1px solid #222;padding:8px;text-align:center;color:#111;font-size:12px;">${lastPayTypes}</td>
+          <td style="border:1px solid #222;padding:8px;text-align:center;color:#111;font-size:12px;">${fin}</td>
+          <td style="border:1px solid #222;padding:8px;text-align:center;color:#111;font-size:13px;">${p.total}</td>
         </tr>`;
     }).join('');
     const wrapper = document.createElement('div');
+    wrapper.setAttribute('lang', 'ar');
+    wrapper.setAttribute('dir', 'rtl');
     wrapper.style.padding = '14px';
     wrapper.style.direction = 'rtl';
-    wrapper.style.fontFamily = 'Segoe UI, Tahoma, sans-serif';
+    wrapper.style.background = '#ffffff';
+    wrapper.style.color = '#111111';
+    wrapper.style.fontFamily = "'Segoe UI', Tahoma, Arial, sans-serif";
     wrapper.innerHTML = `
-      <h2 style="margin:0 0 8px;">دفتر المجموعة - ${g?.name || '---'}</h2>
-      <div style="margin-bottom:10px;color:#333;">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</div>
-      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <h2 style="margin:0 0 8px;color:#111;font-size:18px;">دفتر المجموعة — ${escapeHtmlNotebook(g?.name || '---')}</h2>
+      <div style="margin-bottom:10px;color:#333;font-size:13px;">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</div>
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;">
         <thead><tr>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">#</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">الطالب</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 حصص</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 امتحانات</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 واجبات</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 أنواع دفع</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">النقاط</th>
+          <th style="border:1px solid #222;padding:8px;background:#eaeaea;color:#111;width:34px;">#</th>
+          <th style="border:1px solid #222;padding:8px;background:#eaeaea;color:#111;">الطالب</th>
+          <th style="border:1px solid #222;padding:8px;background:#eaeaea;color:#111;">آخر 3 حصص</th>
+          <th style="border:1px solid #222;padding:8px;background:#eaeaea;color:#111;">آخر 3 امتحانات</th>
+          <th style="border:1px solid #222;padding:8px;background:#eaeaea;color:#111;">آخر 3 واجبات</th>
+          <th style="border:1px solid #222;padding:8px;background:#eaeaea;color:#111;">آخر 3 أنواع دفع</th>
+          <th style="border:1px solid #222;padding:8px;background:#eaeaea;color:#111;">ملخص مالي</th>
+          <th style="border:1px solid #222;padding:8px;background:#eaeaea;color:#111;width:52px;">النقاط</th>
         </tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" style="border:1px solid #bbb;padding:8px;text-align:center;">لا يوجد طلاب</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="8" style="border:1px solid #bbb;padding:8px;text-align:center;">لا يوجد طلاب</td></tr>'}</tbody>
       </table>
     `;
     document.body.appendChild(wrapper);
@@ -2512,14 +2635,69 @@ function downloadGroupNotebookFile() {
     html2pdf().set({
         margin: 8,
         filename,
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            letterRendering: true,
+            scrollY: 0,
+            scrollX: 0,
+            backgroundColor: '#ffffff'
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     }).from(wrapper).save().then(() => {
         wrapper.remove();
     }).catch(() => {
         wrapper.remove();
-        alert('حدث خطأ أثناء توليد ملف PDF');
+        alert('حدث خطأ أثناء توليد ملف PDF — جرّب زر الطباعة.');
     });
+}
+
+function printGroupNotebookPage() {
+    const gid = document.getElementById('notebookGroup')?.value || '';
+    const g = groups.find(x => x.id === gid);
+    const list = students.filter(s => s.groupId === gid);
+    const rows = list.map((s, idx) => {
+        normalizePaymentStatus(s);
+        const p = calculatePoints(s);
+        const att = (s.attendanceLog || []).slice(-3).map(a => a.status === 'present' ? 'حضور' : 'غياب').join(' | ') || '---';
+        const ex = (s.exams || []).slice(-3).map(e => `${e.score}/${e.total}`).join(' | ') || '---';
+        const hw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || '---';
+        const lastPayTypes = (s.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).slice(0,3).map(x => x.type || '—').join(' | ') || '—';
+        const fin = getNotebookFinancialPlain(s);
+        return `<tr>
+          <td style="border:1px solid #333;padding:6px;text-align:center;">${idx + 1}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:right;font-weight:bold;">${escapeHtmlNotebook(s.name)}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;font-size:11px;">${att}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;font-size:11px;">${ex}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;font-size:11px;">${hw}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;font-size:11px;">${lastPayTypes}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;font-size:11px;">${fin}</td>
+          <td style="border:1px solid #333;padding:6px;text-align:center;">${p.total}</td>
+        </tr>`;
+    }).join('');
+    const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>دفتر ${escapeHtmlNotebook(g?.name || '')}</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; padding: 16px; color: #111; }
+        h1 { font-size: 18px; margin: 0 0 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #333; padding: 6px; }
+        th { background: #eee; }
+        @media print { body { padding: 8px; } }
+      </style></head><body>
+      <h1>دفتر المجموعة — ${escapeHtmlNotebook(g?.name || '---')}</h1>
+      <p style="margin:0 0 12px;font-size:13px;">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</p>
+      <table><thead><tr>
+        <th>#</th><th>الطالب</th><th>آخر 3 حصص</th><th>آخر 3 امتحانات</th><th>آخر 3 واجبات</th><th>آخر 3 دفعات</th><th>ملخص مالي</th><th>النقاط</th>
+      </tr></thead><tbody>${rows || '<tr><td colspan="8" style="text-align:center;">لا يوجد طلاب</td></tr>'}</tbody></table>
+      <script>window.onload=function(){window.focus();window.print();}<\/script>
+    </body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return alert('المتصفح منع النافذة المنبثقة — اسمح بالنوافذ المنبثقة ثم أعد المحاولة.');
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
 }
 
 function saveGroupNote() {
@@ -2557,6 +2735,7 @@ function openReadonlyRecords() {
     document.getElementById('modalBody').innerHTML = `
       <h3>عرض السجلات (قراءة فقط)</h3>
       <input id="recordsSearch" placeholder="بحث بالاسم/المجموعة/موبايل الطالب/ولي الأمر" oninput="renderReadonlyRecordsList()">
+      <div id="recordsSearchMeta" style="font-size:12px;margin:8px 0;opacity:0.9;"></div>
       <div id="readonlyRecordsList" class="mini-list"></div>
       <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
     `;
@@ -2568,14 +2747,23 @@ function openReadonlyRecords() {
 
 function renderReadonlyRecordsList() {
     const q = (document.getElementById('recordsSearch')?.value || '').toLowerCase();
-    const rows = students
-      .filter(s =>
+    const matched = students.filter(s =>
         (s.name || '').toLowerCase().includes(q) ||
         (s.groupName || '').toLowerCase().includes(q) ||
         (s.sPhone || '').toLowerCase().includes(q) ||
         (s.pPhone || '').toLowerCase().includes(q)
-      )
-      .map((s, idx) => `<div class="log-item"><b>${s.name}</b> - ${s.year || 'غير محدد'}<br><small>المجموعة: ${s.groupName || 'بدون مجموعة'} | 📱 ${s.sPhone || '---'} | 👨‍👩‍👦 ${s.pPhone || '---'}</small><br><button class="btn" style="background:#495057;margin-top:6px" onclick="openReadonlyStudent(${idx})">عرض السجل</button></div>`).join('');
+      );
+    const rows = matched
+      .map((s) => {
+        const realIdx = students.findIndex(x => x.id === s.id);
+        const dispY = getStudentAcademicYear(s) || 'غير محدد';
+        return `<div class="log-item"><b>${s.name}</b> - ${dispY}<br><small>المجموعة: ${s.groupName || 'بدون مجموعة'} | 📱 ${s.sPhone || '---'} | 👨‍👩‍👦 ${s.pPhone || '---'}</small><br><button class="btn" style="background:#495057;margin-top:6px" onclick="openReadonlyStudent(${realIdx})">عرض السجل</button></div>`;
+      }).join('');
+    const meta = document.getElementById('recordsSearchMeta');
+    if (meta) {
+        if (!q.trim()) meta.textContent = '';
+        else meta.textContent = matched.length ? `تم العثور على ${matched.length} طالب مطابق.` : 'لا توجد نتائج مطابقة للبحث.';
+    }
     document.getElementById('readonlyRecordsList').innerHTML = rows || '<p>لا يوجد نتائج</p>';
 }
 
@@ -2606,12 +2794,13 @@ function openAllStudentsHub() {
     const total = students.length;
     allStudentsHubPage = 1;
     document.getElementById('modalBody').innerHTML = `
+      <div class="all-students-modal">
       <h3>كل الطلاب</h3>
       <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;">
         <div class="log-item"><b>إجمالي الطلاب:</b> ${total}</div>
       </div>
       <input id="allFName" placeholder="بحث بالاسم" oninput="resetAllStudentsHubPagination()">
-      <select id="allFYear" oninput="resetAllStudentsHubPagination()">
+      <select id="allFYear" oninput="resetAllStudentsHubPagination()" onchange="resetAllStudentsHubPagination()">
         <option value="">كل السنوات</option>
         <option value="الصف الأول الثانوي">أولى ثانوي</option>
         <option value="الصف الثاني الثانوي">تانية ثانوي</option>
@@ -2619,10 +2808,12 @@ function openAllStudentsHub() {
       </select>
       <input id="allFSP" placeholder="موبايل الطالب" oninput="resetAllStudentsHubPagination()">
       <input id="allFPP" placeholder="موبايل ولي الأمر" oninput="resetAllStudentsHubPagination()">
+      <div id="allStudentsSearchMeta" style="font-size:12px;margin:8px 0;opacity:0.92;"></div>
       <div id="allStudentsHubList" class="mini-list"></div>
       <button id="allStudentsLoadMoreBtn" class="btn btn-primary" style="display:none;background:#3b5bdb" onclick="loadMoreAllStudentsHub()">تحميل 50 طالب إضافي</button>
       <button class="btn btn-primary" style="background:var(--whatsapp)" onclick="sendAllStudentsQuickReportWA()">إرسال تقرير سريع واتساب</button>
       <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
+      </div>
     `;
     renderAllStudentsHub();
     document.getElementById('genericModal').style.display = 'flex';
@@ -2645,7 +2836,7 @@ function sendAllStudentsQuickReportWA() {
     const pp = (document.getElementById('allFPP')?.value || '').toLowerCase();
     const list = students.filter(s =>
       (s.name || '').toLowerCase().includes(n) &&
-      (y === '' || s.year === y) &&
+      studentMatchesYearFilter(s, y) &&
       (s.sPhone || '').toLowerCase().includes(sp) &&
       (s.pPhone || '').toLowerCase().includes(pp)
     ).slice(0, 40);
@@ -2662,21 +2853,29 @@ function renderAllStudentsHub() {
     const filtered = students
       .filter(s =>
         (s.name || '').toLowerCase().includes(n) &&
-        (y === '' || s.year === y) &&
+        studentMatchesYearFilter(s, y) &&
         (s.sPhone || '').toLowerCase().includes(sp) &&
         (s.pPhone || '').toLowerCase().includes(pp)
       );
     const maxItems = allStudentsHubPage * ALL_STUDENTS_PAGE_SIZE;
     const visible = filtered.slice(0, maxItems);
+    const metaEl = document.getElementById('allStudentsSearchMeta');
+    if (metaEl) {
+        const active = !!(n || y || sp || pp);
+        metaEl.textContent = active
+            ? (filtered.length ? `عرض ${visible.length} من ${filtered.length} طالب مطابق.` : 'لا توجد نتائج مطابقة للبحث.')
+            : `إجمالي المتاح بعد الفلاتر: ${filtered.length} طالب (اضغط تحميل المزيد إن وُجد).`;
+    }
     const rows = visible
       .map((s, i) => {
         const realIdx = students.findIndex(x => x.id === s.id);
-        return `<div class="log-item" style="border-right:4px solid ${getGroupThemeById(s.groupId)}">
+        const dispY = getStudentAcademicYear(s) || '---';
+        return `<div class="log-item all-student-card" style="border-right:4px solid ${getGroupThemeById(s.groupId)}">
           <b>${s.name}</b><br>
-          <small>🎓 ${s.year || '---'} | 👥 ${s.groupName || 'بدون مجموعة'}</small><br>
+          <small>🎓 ${dispY} | 👥 ${s.groupName || 'بدون مجموعة'}</small><br>
           <small>📱 ${s.sPhone || '---'} | 👨‍👩‍👦 ${s.pPhone || '---'}</small><br>
           <small>🏠 ${s.address || '---'}</small>
-          <div style="display:flex; gap:6px; margin-top:8px;">
+          <div class="all-student-actions">
             <button class="btn" style="background:#5f3dc4" onclick="changeStudentGroup(${realIdx})">تغيير مجموعة</button>
             <button class="btn" style="background:var(--primary)" onclick="openReadonlyStudent(${realIdx})">السجل</button>
             <button class="btn" style="background:#444" onclick="openPaymentModal(${realIdx})">الدفع</button>
@@ -2704,8 +2903,11 @@ function changeStudentGroup(i) {
 
 function confirmChangeStudentGroup(i) {
     const gid = document.getElementById('changeGroupSelect').value;
+    const ng = groups.find(x => x.id === gid);
     students[i].groupId = gid;
     students[i].groupName = getGroupNameById(gid);
+    if (ng?.studyYear) students[i].year = ng.studyYear;
+    if (ng?.center) students[i].center = ng.center;
     save(students[i]);
     alert(`تم نقل ${students[i].name} إلى مجموعة: ${students[i].groupName || 'بدون مجموعة'} بنجاح`);
     draw();

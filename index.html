@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="../manifest.json">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>MOS3AB</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -46,10 +49,56 @@
         .btn:active { transform: scale(0.98); }
         .btn-primary { background: var(--primary); width: 100%; height: 50px; font-size: 16px; margin-top: 10px; box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3); }
        
-        .table-wrapper { overflow-x: auto; border-radius: 15px; margin-bottom: 15px; }
+        .table-wrapper { overflow-x: auto; border-radius: 15px; margin-bottom: 15px; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; background: transparent; min-width: 600px; }
         th, td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; }
         th { color: var(--gold); font-weight: 700; }
+
+        /* تحسين شكل الجداول على الموبايل */
+        @media (max-width: 600px) {
+            .table-wrapper table, .table-wrapper thead, .table-wrapper tbody, .table-wrapper th, .table-wrapper td, .table-wrapper tr { 
+                display: block; 
+            }
+            .table-wrapper thead tr { 
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            .table-wrapper tr { 
+                border: 1px solid rgba(255,255,255,0.1); 
+                margin-bottom: 10px; 
+                background: var(--card);
+                border-radius: 15px;
+                padding: 10px;
+            }
+            .table-wrapper td { 
+                border: none;
+                position: relative;
+                padding-left: 50%; 
+                text-align: right !important;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+            }
+            .table-wrapper td:last-child { border-bottom: none; }
+            .table-wrapper td:before { 
+                content: attr(data-label);
+                font-weight: bold;
+                color: var(--gold);
+            }
+            .action-btns, td div { justify-content: flex-start !important; flex-wrap: wrap; gap: 8px; }
+        }
+
+        /* تحسين شكل كل الطلاب على الموبايل */
+        #allStudentsHubList {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        @media (max-width: 500px) {
+            #allStudentsHubList { grid-template-columns: 1fr; }
+        }
         .phone-link { color: var(--info); text-decoration: none; font-size: 11px; display: block; margin-top: 4px; }
         .small-date { font-size: 10px; opacity: 0.8; display: block; }
         
@@ -82,14 +131,6 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.25);
         }
         .group-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.35); }
-        #groupFilterBox {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin-bottom: 8px;
-        }
-        .input-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .input-row input { flex: 1 1 0; min-width: 0; }
         .pay-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 15px 0; }
         .hw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
         .action-btns { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
@@ -101,20 +142,12 @@
             .nav h2 { font-size: 17px; }
             .pay-grid { grid-template-columns: 1fr; }
             .hub-actions { grid-template-columns: 1fr; }
-            .hub-actions .hub-btn { width: 100%; }
             .quick-actions { grid-template-columns: 1fr; }
             .group-card { min-height: 130px; }
-            #groupFilterBox { grid-template-columns: 1fr; }
-            .input-row { flex-direction: column; }
-            .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-            .table-wrapper table { min-width: 100%; font-size: 12px; }
-            th, td { padding: 8px 4px; font-size: 11px; white-space: nowrap; }
+            .table-wrapper { overflow-x: scroll; }
             .modal-content { width: 95%; max-width: 95%; padding: 18px; }
             .btn { font-size: 14px; padding: 10px; }
             .glass-box { padding: 15px; }
-            footer { padding: 16px 10px; font-size: 13px; }
-            .nav { padding: 12px; }
-            .btn[title="تسجيل خروج"] { width: auto !important; }
         }
        
         .honor-section { background: linear-gradient(45deg, rgba(138,43,226,0.12), rgba(0,212,255,0.12)); border: 2px solid var(--gold); box-shadow: 0 10px 30px rgba(255,215,0,0.1); }
@@ -127,83 +160,173 @@
         .hw-btn { height: 45px; font-size: 14px; }
         
         .wa-btn-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-        /* شاشة الدخول الاحترافية */
-#loginOverlay {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: radial-gradient(circle at top right, rgba(138,43,226,0.25), transparent 20%),
-                radial-gradient(circle at bottom left, rgba(0,212,255,0.18), transparent 18%),
-                linear-gradient(135deg, #12111f 0%, #0b0a14 100%);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 9999; transition: 0.5s;
-}
+        
+        /* شاشة دخول كرييتف فشخ */
+        #loginOverlay {
+            position: fixed;
+            inset: 0;
+            background: #0b0a14;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            overflow: hidden;
+            transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-.login-card {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(18px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    padding: 34px 30px 26px;
-    border-radius: 28px;
-    width: min(95%, 380px);
-    text-align: center;
-    box-shadow: 0 28px 70px rgba(0,0,0,0.45);
-    position: relative;
-    overflow: hidden;
-}
-.login-card::before {
-    content: "";
-    position: absolute;
-    inset: -40% -20% auto -20%;
-    height: 220px;
-    background: radial-gradient(circle, rgba(138,43,226,.25), transparent 55%);
-    pointer-events: none;
-}
+        /* خلفية متحركة */
+        .login-bg-blobs {
+            position: absolute;
+            inset: 0;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.6;
+        }
+        .blob {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            animation: move 20s infinite alternate;
+        }
+        .blob-1 { background: var(--primary); top: -100px; left: -100px; }
+        .blob-2 { background: var(--info); bottom: -100px; right: -100px; animation-delay: -5s; }
+        .blob-3 { background: var(--success); top: 50%; left: 50%; transform: translate(-50%, -50%); animation-duration: 15s; }
 
-.brand-logo {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 18px;
-    border-radius: 22px;
-    background: linear-gradient(135deg, rgba(138,43,226,0.95), rgba(0,212,255,0.95));
-    display: grid;
-    place-items: center;
-    color: #fff;
-    font-size: 32px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    box-shadow: 0 18px 42px rgba(0,0,0,0.35);
-}
-.brand-logo small {
-    display: block;
-    font-size: 10px;
-    letter-spacing: 0.9px;
-    opacity: 0.75;
-    margin-top: 2px;
-}
+        @keyframes move {
+            from { transform: translate(0, 0) rotate(0deg) scale(1); }
+            to { transform: translate(100px, 50px) rotate(180deg) scale(1.2); }
+        }
 
-.login-card h2 { color: #fff; margin-bottom: 6px; font-weight: 800; letter-spacing: .5px; }
-.login-sub { opacity:.85; font-size:14px; margin-bottom: 22px; color: #d8d8ff; }
+        .login-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 35px;
+            width: min(90%, 420px);
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            animation: cardAppear 1s backwards;
+        }
 
-.login-card input {
-    width: 100%; padding: 12px; margin-bottom: 18px;
-    border-radius: 12px; border: none;
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff; outline: none;
-}
+        @keyframes cardAppear {
+            from { opacity: 0; transform: translateY(30px) scale(0.9); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
 
-.login-card button {
-    width: 100%; padding: 14px; border-radius: 14px;
-    border: none; background: linear-gradient(135deg, #8a2be2, #4e73df);
-    color: white; font-weight: 700; cursor: pointer; transition: 0.3s;
-}
+        .login-card h2 {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(to right, #fff, #a7a7a7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
 
-.login-card button:hover { background: linear-gradient(135deg, #6d23d5, #3456c9); }
-.login-footer {
-    margin-top: 18px;
-    font-size: 12px;
-    color: rgba(255,255,255,0.67);
-}
-.watermark {
+        .login-sub {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: right;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--gold);
+            margin-bottom: 8px;
+            margin-right: 5px;
+            font-weight: 600;
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            color: #fff;
+            font-size: 15px;
+            transition: 0.3s;
+            outline: none;
+            margin: 0;
+        }
+
+        .login-card input:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.2);
+        }
+
+        .login-card button {
+            width: 100%;
+            padding: 16px;
+            margin-top: 10px;
+            border-radius: 15px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), #6200ea);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.4s;
+            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.3);
+        }
+
+        .login-card button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(138, 43, 226, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .login-card button:active { transform: translateY(-1px); }
+
+        .login-footer {
+            margin-top: 25px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 0.5px;
+        }
+
+        #loginError {
+            background: rgba(255, 94, 98, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        /* تأثير الـ Glass Shine */
+        .login-card::after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.03), transparent);
+            transform: rotate(45deg);
+            animation: shine 6s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+
+        .watermark {
     position: fixed;
     bottom: 10px;
     right: 10px;
@@ -219,16 +342,36 @@
 <body id="bodyTag">
     <!-- <div class="watermark">Developed by Mosaab</div> -->
     <div id="loginOverlay">
-    <div class="login-card">
-        <h2>تسجيل الدخول</h2>
-        <div class="login-sub">أدخل بياناتك للوصول إلى لوحة التحكم</div>
-        <input type="text" id="adminUser" placeholder="اسم المستخدم">
-        <input type="password" id="adminPass" placeholder="كلمة المرور">
-        <button onclick="handleLogin()">دخول</button>
-        <p id="loginError" style="color: #ff5e5e; display: none; margin-top: 15px;">البيانات غير صحيحة!</p>
-        <div class="login-footer">نسخة متقدمة من نظام MOS3AB لإدارة الطلاب</div>
+        <div class="login-bg-blobs">
+            <div class="blob blob-1"></div>
+            <div class="blob blob-2"></div>
+            <div class="blob blob-3"></div>
+        </div>
+        <div class="login-card">
+            <div style="margin-bottom: 25px;">
+                <div style="width: 70px; height: 70px; background: linear-gradient(135deg, var(--primary), var(--info)); border-radius: 20px; margin: 0 auto 15px; display: grid; place-items: center; font-size: 30px; box-shadow: 0 10px 20px rgba(138,43,226,0.3);">🏛️</div>
+                <h2>MOS3AB System</h2>
+                <div class="login-sub">مرحباً بك في النسخة المطورة من نظام الإدارة</div>
+            </div>
+            
+            <div class="input-group">
+                <label>👤 اسم المستخدم</label>
+                <input type="text" id="adminUser" placeholder="أدخل اسم المستخدم">
+            </div>
+            
+            <div class="input-group">
+                <label>🔒 كلمة المرور</label>
+                <input type="password" id="adminPass" placeholder="أدخل كلمة المرور">
+            </div>
+            
+            <button onclick="handleLogin()">تسجيل الدخول</button>
+            <p id="loginError">خطأ في البيانات، حاول مرة أخرى!</p>
+            
+            <div class="login-footer">
+                &copy; 2026 MOS3AB ELSHARKSY - ALL RIGHTS RESERVED
+            </div>
+        </div>
     </div>
-</div>
     <div class="nav">
         <div>
             <h2 style="font-size:18px; letter-spacing:1px;">MOS3AB</h2>
@@ -285,14 +428,14 @@
                 <select id="groupSelect"></select>
             </div>
             <input type="text" id="address" placeholder="العنوان">
-            <div class="input-row">
+            <div style="display:flex; gap:5px;">
                 <input type="tel" id="sPhone" placeholder="رقم الموبايل">
                 <input type="tel" id="pPhone" placeholder="رقم ولي الأمر">
             </div>
             <button class="btn btn-primary" id="mainBtn" onclick="addStudent()">✨ إضافة الطالب</button>
         </div>
         
-        <div id="groupFilterBox" style="display:none;">
+        <div id="groupFilterBox" style="display:none; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin-bottom:8px;">
             <input type="text" id="sN" oninput="draw()" placeholder="🔍 الاسم...">
             <input type="text" id="sSP" oninput="draw()" placeholder="📱 موبايل الطالب">
             <input type="text" id="sPP" oninput="draw()" placeholder="👨‍👩‍👦 موبايل ولي الأمر">
@@ -340,7 +483,7 @@
     <script>
         // Register service worker for PWA
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('../sw.js')
+            navigator.serviceWorker.register('./sw.js')
                 .then(reg => console.log('SW registered'))
                 .catch(err => console.log('SW registration failed', err));
         }
@@ -511,48 +654,28 @@ async function loadQueueFromIDB() {
 }
 
 async function loadStudentsFromFirestore() {
-    try {
-        const snapshot = await studentsRef.orderBy('name').get();
-        if (!snapshot.empty) {
-            students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            ensureDataShape();
-            localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
-            saveStudentsToIDB(students);
-        } else {
-            // Load from IDB first for offline
-            students = await loadStudentsFromIDB();
-            if (!students.length) {
-                students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
-            }
-        }
-    } catch (e) {
-        console.log('Firestore load failed, loading from cache', e);
-        students = await loadStudentsFromIDB();
-        if (!students.length) {
-            students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
-        }
+    const snapshot = await studentsRef.orderBy('name').get();
+    if (!snapshot.empty) {
+        students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        ensureDataShape();
+        localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
+        saveStudentsToIDB(students);
+    } else {
+        students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
     }
 }
 
 async function loadGroupsFromFirestore() {
-    try {
-        const snapshot = await groupsRef.orderBy('name').get();
-        if (!snapshot.empty) {
-            groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            persistGroups();
-            await saveGroupsToIDB(groups);
-        } else {
-            groups = await loadGroupsFromIDB();
-            if (!groups.length) {
-                groups = loadGroupsFromStorage();
-            }
-        }
-    } catch (e) {
-        console.log('Firestore load failed, loading from cache', e);
-        groups = await loadGroupsFromIDB();
-        if (!groups.length) {
-            groups = loadGroupsFromStorage();
-        }
+    const snapshot = await groupsRef.orderBy('name').get();
+    if (!snapshot.empty) {
+        groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        persistGroups();
+        await saveGroupsToIDB(groups);
+    } else {
+        groups = loadGroupsFromStorage();
+        groups.forEach(g => {
+            if (g.id) groupsRef.doc(g.id).set(g, { merge: true }).catch(() => {});
+        });
     }
     renderGroupSelect();
 }
@@ -738,7 +861,7 @@ window.addEventListener('DOMContentLoaded', () => {
         let allStudentsHubPage = 1;
         const ALL_STUDENTS_PAGE_SIZE = 50;
         const groupThemes = ['#8a2be2', '#0b7285', '#2b8a3e', '#e67700', '#c2255c', '#364fc7'];
-        const DEFAULT_TEACHER_PHONE = "201234567890"; // غير هذا لرقم المدرس
+        const DEFAULT_TEACHER_PHONE = "201000000000";
         let offlineQueue = JSON.parse(localStorage.getItem('offline_queue_v1') || '[]');
 
 function loadGroupsFromStorage() {
@@ -779,20 +902,6 @@ function save(studentObj) {
     }
 }
 
-function addOrUpdateSessionAttendanceLog(student, status, sessionId) {
-    if (!student) return;
-    if (!student.attendanceLog) student.attendanceLog = [];
-    const existing = student.attendanceLog.find(entry => entry.sessionId === sessionId);
-    const now = new Date().toLocaleString('ar-EG');
-    if (existing) {
-        existing.status = status;
-        existing.date = getTodayDate();
-        existing.at = now;
-        return;
-    }
-    student.attendanceLog.push({ date: getTodayDate(), status, at: now, sessionId });
-}
-
 function syncActiveSessionToFirebase() {
     if (!navigator.onLine) {
         enqueueSync({ type: activeSession ? 'activeSessionSet' : 'activeSessionClear', payload: activeSession || null, ts: getNowMs(), id: 'active_session' });
@@ -831,6 +940,9 @@ async function flushSyncQueue() {
     }
     localStorage.setItem('offline_queue_v1', JSON.stringify(offlineQueue));
 }
+window.addEventListener('online', flushSyncQueue);
+flushSyncQueue(); // محاولة المزامنة عند الفتح لو فيه نت
+
         function toggleDarkMode() {
             const isLight = document.getElementById('bodyTag').classList.toggle('light-mode');
             localStorage.setItem('theme_mode', isLight ? 'light' : 'dark');
@@ -960,7 +1072,7 @@ function addStudent() {
             const isDanger = missedCount >= 2;
             const groupTheme = getGroupThemeById(s.groupId);
             html += `<tr>
-                <td style="text-align:right; border-right:4px solid ${groupTheme}" class="${isDanger ? 'danger-glow' : ''}">
+                <td data-label="بيانات الطالب" style="text-align:right; border-right:4px solid ${groupTheme}" class="${isDanger ? 'danger-glow' : ''}">
                     <b>${s.name}</b><br>
                     <span style="font-size:10px; color:var(--primary)">🎓 ${s.year} | 📍 ${s.center}</span><br>
                     <span class="pill">👥 ${s.groupName || 'بدون مجموعة'}</span>
@@ -968,13 +1080,13 @@ function addStudent() {
                     <a class="phone-link" href="tel:${s.sPhone}">📱 الطالب: ${s.sPhone}</a>
                     <a class="phone-link" href="tel:${s.pPhone}" style="color:var(--warning)">👨‍👩‍👦 ولي الأمر: ${s.pPhone}</a>
                 </td>
-                <td><button class="btn" style="background:${s.payment?'var(--success)':'#444'}" onclick="openPaymentModal(${i})">${s.payment?'✅ دافع':'💰 ادفع'}</button></td>
-                <td>
+                <td data-label="حالة الدفع"><button class="btn" style="background:${s.payment?'var(--success)':'#444'}" onclick="openPaymentModal(${i})">${s.payment?'✅ دافع':'💰 ادفع'}</button></td>
+                <td data-label="التواريخ">
                     <span class="small-date">📅 تسجيل: ${s.regDate}</span>
                     <span class="small-date" style="color:var(--success)">💳 دفع: ${s.payDate || '---'}</span>
                     <span class="small-date" style="color:var(--danger)">⚠️ غياب: ${missedCount}</span>
                 </td>
-                <td>
+                <td data-label="إدارة">
                     <div style="display:flex; gap:4px; justify-content:center;">
                         <button class="btn" style="background:var(--whatsapp)" onclick="showWhatsAppOptions(${i})">📱</button>
                         <button class="btn" style="background:#5f3dc4" title="تغيير المجموعة" onclick="changeStudentGroup(${i})">🔁</button>
@@ -1190,24 +1302,19 @@ function sendStudentPointsToParent(i) {
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-async function sendQRWhatsApp(i) {
+function sendQRWhatsApp(i) {
     let s = students[i];
+    let canvas = document.querySelector("#qArea canvas");
+    
+    if (canvas) {
+        // حركة التحميل التلقائي (بتشتغل 100% على اللاب وتسهل على المستر)
+        let downloadLink = document.createElement('a');
+        downloadLink.setAttribute('download', `QR-${s.name}.png`);
+        downloadLink.setAttribute('href', canvas.toDataURL("image/png"));
+        downloadLink.click();
+    }               
 
-    // Generate QR temporarily for download
-    try {
-        const dataURL = await window.QRFunctions.generateQR(s);
-        // Download the QR image
-        const a = document.createElement('a');
-        a.href = dataURL;
-        a.download = `QR-${s.name}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    } catch (error) {
-        console.error('Error generating QR for download:', error);
-    }
-
-    // Send text message via WhatsApp
+    // نص الرسالة اللي اتفقنا عليه (ثابت زي ما هو)
     let msg = `أهلاً يا *${s.name}*.. 🌟 \nده كود الدخول الخاص بك في السنتر. \n\nيرجى حفظ هذه الصورة وإظهارها للسكرتارية عند الدخول لتسجيل حضورك. \n\nبالتوفيق يا بطل! ✨`;
     
     let phone = s.sPhone.startsWith('0') ? '2' + s.sPhone : s.sPhone;
@@ -1358,7 +1465,10 @@ function openScanner() {
                 }
                 s.attendance = s.attendance || [];
                 s.attendance.push(new Date().toLocaleString('ar-EG'));
-                addOrUpdateSessionAttendanceLog(s, 'present', activeSession.id);
+                // إضافة السجل للجلسة النشطة فوراً لمنع التكرار لاحقاً
+                if (activeSession) {
+                    addOrUpdateSessionAttendanceLog(s, 'present', activeSession.id);
+                }
                 save(s); 
                 updateScannerSessionCount();
                 alert("✅ تم تسجيل حضور: " + s.name); 
@@ -1510,7 +1620,10 @@ function markAttendanceManually(i) {
     }
     s.attendance = s.attendance || [];
     s.attendance.push(new Date().toLocaleString('ar-EG'));
-    addOrUpdateSessionAttendanceLog(s, 'present', activeSession.id);
+    // إضافة السجل للجلسة النشطة فوراً لمنع التكرار لاحقاً
+    if (activeSession) {
+        addOrUpdateSessionAttendanceLog(s, 'present', activeSession.id);
+    }
     save(s); // حفظ في الفايربيز والـ localStorage
     updateScannerSessionCount();
     draw(); // تحديث الجدول عشان تشوف التغيير
@@ -1914,26 +2027,42 @@ function refreshSessionBanner() {
     applyGroupBackground(activeSession.groupId);
 }
 
+function addOrUpdateSessionAttendanceLog(student, status, sessionId) {
+    if (!student.attendanceLog) student.attendanceLog = [];
+    // التأكد من عدم تكرار الحضور لنفس الجلسة
+    const existingIndex = student.attendanceLog.findIndex(log => log.sessionId === sessionId);
+    const now = new Date().toLocaleString('ar-EG');
+    
+    const logEntry = {
+        date: getTodayDate(),
+        status: status, // 'present' or 'absent'
+        at: now,
+        sessionId: sessionId
+    };
+
+    if (existingIndex > -1) {
+        // تحديث السجل الموجود بدل الإضافة
+        student.attendanceLog[existingIndex] = logEntry;
+    } else {
+        student.attendanceLog.push(logEntry);
+    }
+}
+
 function endActiveSession() {
     if (!activeSession) return;
     if (!confirm('هل تريد إنهاء الحصة الحالية؟ سيتم تسجيل الغياب تلقائياً.')) return;
-    const now = new Date().toLocaleString('ar-EG');
+    
     students.forEach((s) => {
         if (s.groupId !== activeSession.groupId) return;
+        
         const attended = activeSession.presentStudentIds.includes(s.id);
-        s.attendanceLog = s.attendanceLog || [];
-        const existingIndex = s.attendanceLog.findIndex(entry => entry.sessionId === activeSession.id);
-        if (existingIndex >= 0) {
-            if (attended && s.attendanceLog[existingIndex].status !== 'present') {
-                s.attendanceLog[existingIndex].status = 'present';
-                s.attendanceLog[existingIndex].date = activeSession.date;
-                s.attendanceLog[existingIndex].at = now;
-            }
-        } else {
-            s.attendanceLog.push({ date: activeSession.date, status: attended ? 'present' : 'absent', at: now, sessionId: activeSession.id });
-        }
+        
+        // استخدام الوظيفة الموحدة لمنع التكرار
+        addOrUpdateSessionAttendanceLog(s, attended ? 'present' : 'absent', activeSession.id);
+        
         save(s);
     });
+    
     activeSession = null;
     localStorage.removeItem('active_session');
     syncActiveSessionToFirebase();
@@ -2460,63 +2589,48 @@ function downloadGroupNotebookFile() {
         const hw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || '---';
         const lastPayTypes = (s.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).slice(0,3).map(x => x.type || '---').join(' | ') || '---';
         return `<tr>
-          <td style="border:1px solid #333;padding:6px;text-align:center;">${idx + 1}</td>
-          <td style="border:1px solid #333;padding:6px;text-align:center;">${s.name}</td>
-          <td style="border:1px solid #333;padding:6px;text-align:center;">${att}</td>
-          <td style="border:1px solid #333;padding:6px;text-align:center;">${ex}</td>
-          <td style="border:1px solid #333;padding:6px;text-align:center;">${hw}</td>
-          <td style="border:1px solid #333;padding:6px;text-align:center;">${lastPayTypes}</td>
-          <td style="border:1px solid #333;padding:6px;text-align:center;">${p.total}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${idx + 1}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${s.name}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${att}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${ex}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${hw}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${lastPayTypes}</td>
+          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${p.total}</td>
         </tr>`;
     }).join('');
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        alert('غير قادر على فتح نافذة الطباعة. تأكد من أن المتصفح يسمح بالنوافذ المنبثقة.');
-        return;
-    }
-    const html = `
-      <html lang="ar" dir="rtl">
-      <head>
-        <meta charset="UTF-8">
-        <title>دفتر المجموعة - ${g?.name || '---'}</title>
-        <style>
-          body { font-family: Tahoma, Arial, sans-serif; margin: 20px; color: #000; }
-          h2 { margin-bottom: 8px; }
-          table { width: 100%; border-collapse: collapse; font-size: 12px; }
-          th, td { border: 1px solid #333; padding: 8px; text-align: center; }
-          th { background: #eee; }
-          tr:nth-child(even) td { background: #f9f9f9; }
-          .header-row { margin-bottom: 10px; }
-        </style>
-      </head>
-      <body>
-        <h2>دفتر المجموعة - ${g?.name || '---'}</h2>
-        <div class="header-row">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</div>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>الطالب</th>
-              <th>آخر 3 حصص</th>
-              <th>آخر 3 امتحانات</th>
-              <th>آخر 3 واجبات</th>
-              <th>آخر 3 أنواع دفع</th>
-              <th>النقاط</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows || '<tr><td colspan="7" style="text-align:center;">لا يوجد طلاب</td></tr>'}
-          </tbody>
-        </table>
-      </body>
-      </html>`;
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      // لا تغلق النافذة تلقائياً لكي يقدر المستخدم يطالع قبل الطباعة
-    }, 300);
+    const wrapper = document.createElement('div');
+    wrapper.style.padding = '14px';
+    wrapper.style.direction = 'rtl';
+    wrapper.style.fontFamily = 'Segoe UI, Tahoma, sans-serif';
+    wrapper.innerHTML = `
+      <h2 style="margin:0 0 8px;">دفتر المجموعة - ${g?.name || '---'}</h2>
+      <div style="margin-bottom:10px;color:#333;">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">#</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">الطالب</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 حصص</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 امتحانات</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 واجبات</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 أنواع دفع</th>
+          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">النقاط</th>
+        </tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" style="border:1px solid #bbb;padding:8px;text-align:center;">لا يوجد طلاب</td></tr>'}</tbody>
+      </table>
+    `;
+    document.body.appendChild(wrapper);
+    const filename = `دفتر-المجموعة-${(g?.name || 'group').replace(/\s+/g, '-')}.pdf`;
+    html2pdf().set({
+        margin: 8,
+        filename,
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    }).from(wrapper).save().then(() => {
+        wrapper.remove();
+    }).catch(() => {
+        wrapper.remove();
+        alert('حدث خطأ أثناء توليد ملف PDF');
+    });
 }
 
 function saveGroupNote() {

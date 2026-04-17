@@ -54,7 +54,7 @@
         th, td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; }
         th { color: var(--gold); font-weight: 700; }
 
-        /* تحسين شكل الجداول على الموبايل */
+        /* تحسين شكل الجداول على الموبايل ليصبح كروت احترافية */
         @media (max-width: 600px) {
             .table-wrapper table, .table-wrapper thead, .table-wrapper tbody, .table-wrapper th, .table-wrapper td, .table-wrapper tr { 
                 display: block; 
@@ -66,28 +66,49 @@
             }
             .table-wrapper tr { 
                 border: 1px solid rgba(255,255,255,0.1); 
-                margin-bottom: 10px; 
+                margin-bottom: 20px; 
                 background: var(--card);
-                border-radius: 15px;
-                padding: 10px;
+                border-radius: 20px;
+                padding: 15px;
+                box-shadow: 0 10px 20px rgba(0,0,0,0.2);
             }
             .table-wrapper td { 
                 border: none;
                 position: relative;
-                padding-left: 50%; 
-                text-align: right !important;
+                padding: 12px 0;
+                padding-right: 40%; 
+                text-align: left !important;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 border-bottom: 1px solid rgba(255,255,255,0.05);
             }
-            .table-wrapper td:last-child { border-bottom: none; }
+            .table-wrapper td:last-child { 
+                border-bottom: none; 
+                padding-top: 15px;
+                display: block;
+                padding-right: 0;
+            }
             .table-wrapper td:before { 
                 content: attr(data-label);
-                font-weight: bold;
+                position: absolute;
+                right: 0;
+                font-weight: 800;
                 color: var(--gold);
+                font-size: 13px;
+                text-transform: uppercase;
             }
-            .action-btns, td div { justify-content: flex-start !important; flex-wrap: wrap; gap: 8px; }
+            /* تظبيط زراير الإدارة في الموبايل */
+            .table-wrapper td[data-label="إدارة"] div {
+                display: grid !important;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+                width: 100%;
+            }
+            .table-wrapper td[data-label="إدارة"] .btn {
+                width: 100%;
+                height: 40px;
+            }
         }
 
         /* تحسين شكل كل الطلاب على الموبايل */
@@ -2582,52 +2603,79 @@ function downloadGroupNotebookFile() {
     const gid = document.getElementById('notebookGroup')?.value || '';
     const g = groups.find(x => x.id === gid);
     const list = students.filter(s => s.groupId === gid);
+    
     const rows = list.map((s, idx) => {
         const p = calculatePoints(s);
-        const att = (s.attendanceLog || []).slice(-3).map(a => a.status === 'present' ? 'حضور' : 'غياب').join(' | ') || '---';
+        const att = (s.attendanceLog || []).slice(-3).map(a => a.status === 'present' ? '✔' : '✘').join(' | ') || '---';
         const ex = (s.exams || []).slice(-3).map(e => `${e.score}/${e.total}`).join(' | ') || '---';
         const hw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || '---';
-        const lastPayTypes = (s.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).slice(0,3).map(x => x.type || '---').join(' | ') || '---';
-        return `<tr>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${idx + 1}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${s.name}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${att}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${ex}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${hw}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${lastPayTypes}</td>
-          <td style="border:1px solid #bbb;padding:6px;text-align:center;">${p.total}</td>
+        const status = getNotebookFinancialStatus(s);
+        
+        return `
+        <tr style="background: ${idx % 2 === 0 ? '#f9f9f9' : '#fff'};">
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${idx + 1}</td>
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: right; font-weight: bold;">${s.name}</td>
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: center; color: #2e7d32;">${att}</td>
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${ex}</td>
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${hw}</td>
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${status}</td>
+          <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-weight: bold; color: #6200ea;">${p.total}</td>
         </tr>`;
     }).join('');
+
     const wrapper = document.createElement('div');
-    wrapper.style.padding = '14px';
+    wrapper.style.padding = '30px';
     wrapper.style.direction = 'rtl';
-    wrapper.style.fontFamily = 'Segoe UI, Tahoma, sans-serif';
+    wrapper.style.fontFamily = 'Arial, sans-serif';
+    wrapper.style.backgroundColor = '#fff';
+    wrapper.style.color = '#000';
+
     wrapper.innerHTML = `
-      <h2 style="margin:0 0 8px;">دفتر المجموعة - ${g?.name || '---'}</h2>
-      <div style="margin-bottom:10px;color:#333;">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</div>
-      <table style="width:100%;border-collapse:collapse;font-size:11px;">
-        <thead><tr>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">#</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">الطالب</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 حصص</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 امتحانات</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 واجبات</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">آخر 3 أنواع دفع</th>
-          <th style="border:1px solid #bbb;padding:6px;background:#efefef;">النقاط</th>
-        </tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" style="border:1px solid #bbb;padding:8px;text-align:center;">لا يوجد طلاب</td></tr>'}</tbody>
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #6200ea; padding-bottom: 20px;">
+        <h1 style="margin: 0; color: #6200ea; font-size: 28px;">نظام MOS3AB لإدارة الطلاب</h1>
+        <h2 style="margin: 10px 0; color: #333;">تقرير دفتر المجموعة: ${g?.name || '---'}</h2>
+        <div style="display: flex; justify-content: space-around; margin-top: 15px; font-size: 14px; color: #555;">
+          <span>📅 التاريخ: <b>${getTodayDate()}</b></span>
+          <span>👥 عدد الطلاب: <b>${list.length}</b></span>
+          <span>📍 السنتر: <b>${g?.center || '---'}</b></span>
+        </div>
+      </div>
+      
+      <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
+        <thead>
+          <tr style="background-color: #6200ea; color: #ffffff;">
+            <th style="border: 1px solid #4527a0; padding: 12px;">#</th>
+            <th style="border: 1px solid #4527a0; padding: 12px; text-align: right;">اسم الطالب</th>
+            <th style="border: 1px solid #4527a0; padding: 12px;">آخر 3 حصص</th>
+            <th style="border: 1px solid #4527a0; padding: 12px;">آخر 3 امتحانات</th>
+            <th style="border: 1px solid #4527a0; padding: 12px;">آخر 3 واجبات</th>
+            <th style="border: 1px solid #4527a0; padding: 12px;">الحالة المالية</th>
+            <th style="border: 1px solid #4527a0; padding: 12px;">النقاط</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || '<tr><td colspan="7" style="border:1px solid #ddd; padding:20px; text-align:center;">لا يوجد طلاب مسجلين في هذه المجموعة</td></tr>'}
+        </tbody>
       </table>
+      
+      <div style="margin-top: 40px; text-align: left; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 10px;">
+        تم استخراج هذا التقرير تلقائياً بواسطة نظام MOS3AB © 2026
+      </div>
     `;
+
     document.body.appendChild(wrapper);
-    const filename = `دفتر-المجموعة-${(g?.name || 'group').replace(/\s+/g, '-')}.pdf`;
+    const filename = `دفتر-${(g?.name || 'مجموعة').replace(/\s+/g, '-')}-${getTodayDate()}.pdf`;
+
     html2pdf().set({
-        margin: 8,
+        margin: 10,
         filename,
-        html2canvas: { scale: 2, useCORS: true },
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
     }).from(wrapper).save().then(() => {
         wrapper.remove();
-    }).catch(() => {
+    }).catch((err) => {
+        console.error('PDF Error:', err);
         wrapper.remove();
         alert('حدث خطأ أثناء توليد ملف PDF');
     });

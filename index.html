@@ -6,10 +6,10 @@
     <meta name="theme-color" content="#8a2be2">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="MOS3AB">
+    <meta name="apple-mobile-web-app-title" content=" سيستيم ادارة طلاب ">
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./icon-192.png">
-    <title>MOS3AB</title>
+    <title> سيسيم اداة طلاب </title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -236,14 +236,14 @@
     <!-- <div class="watermark">Developed by Mosaab</div> -->
     <div id="loginOverlay">
     <div class="login-card">
-        <div class="login-badge">SMART DASHBOARD</div>
+        <!-- <div class="login-badge">SMART DASHBOARD</div> -->
         <h2>تسجيل الدخول</h2>
         <div class="login-sub">أدخل بياناتك للوصول إلى لوحة التحكم</div>
-        <input type="text" id="adminUser" placeholder="اسم المستخدم">
+        <input type="text" id="adminUser" placeholder="اسم المدرس">
         <input type="password" id="adminPass" placeholder="كلمة المرور">
         <button onclick="handleLogin()">دخول</button>
         <p id="loginError" style="color: #ff5e5e; display: none; margin-top: 15px;">البيانات غير صحيحة!</p>
-        <div class="login-footer">نسخة متقدمة من نظام MOS3AB لإدارة الطلاب</div>
+        <div class="login-footer"> نظام ELSHARKSY لإدارة الطلاب</div>
     </div>
 </div>
     <div id="welcomeOverlay" aria-live="polite" style="display:none;position:fixed;inset:0;z-index:10002;align-items:center;justify-content:center;background:radial-gradient(circle at 20% 20%,rgba(138,43,226,.35),transparent 45%),radial-gradient(circle at 80% 80%,rgba(0,212,255,.22),transparent 42%),linear-gradient(145deg,#0a0912 0%,#12102a 55%,#06060c 100%);backdrop-filter:blur(12px);flex-direction:column;padding:24px;text-align:center;">
@@ -256,7 +256,7 @@
     </div>
     <div class="nav">
         <div>
-            <h2 style="font-size:18px; letter-spacing:1px;">MOS3AB</h2>
+            <h2 style="font-size:18px; letter-spacing:1px;"> السيد الشركسي </h2>
             <span id="groupLabel" style="color:var(--gold); font-size:12px; display:block">الرئيسية والمالية 🏛️</span>
         </div>
         <div style="display:flex; gap:8px;">
@@ -314,7 +314,7 @@
                 <input type="tel" id="sPhone" placeholder="رقم الموبايل">
                 <input type="tel" id="pPhone" placeholder="رقم ولي الأمر">
             </div>
-            <button class="btn btn-primary" id="mainBtn" onclick="addStudent()">✨ إضافة الطالب</button>
+            <button class="btn btn-primary" id="mainBtn" onclick="addStudent()"> إضافة الطالب</button>
         </div>
         
         <div id="groupFilterBox" style="display:none; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin-bottom:8px;">
@@ -731,7 +731,7 @@ async function showTeacherWelcomeSequence() {
     const textEl = document.getElementById('welcomeTypedText');
     const caret = document.getElementById('welcomeCaret');
     if (!overlay || !textEl) return;
-    const fullText = `أهلاً بيك يا أستاذ ${TEACHER_DISPLAY_NAME} 👋`;
+    const fullText = `أهلاً بيك يا أستاذ ${TEACHER_DISPLAY_NAME} `;
     overlay.style.display = 'flex';
     textEl.textContent = '';
     if (caret) caret.style.visibility = 'visible';
@@ -857,7 +857,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const groupThemes = ['#8a2be2', '#0b7285', '#2b8a3e', '#e67700', '#c2255c', '#364fc7'];
         const DEFAULT_TEACHER_PHONE = "+201205009564";
         /** اسم الأستاذ يظهر في شاشة الترحيب بعد تسجيل الدخول — غيّره لاسمك */
-        const TEACHER_DISPLAY_NAME = 'سيد';
+        const TEACHER_DISPLAY_NAME = ' السيد الشركسي';
         let offlineQueue = JSON.parse(localStorage.getItem('offline_queue_v1') || '[]');
 
 function loadGroupsFromStorage() {
@@ -1346,7 +1346,7 @@ function sendQRWhatsApp(i) {
         downloadLink.setAttribute('href', canvas.toDataURL("image/png"));
         downloadLink.click();
         const saveHint = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-            ? '✅ الصورة اتجهزت. من صفحة المشاركة/التنزيلات احفظها في الصور.'
+            ? '✅دوس على الصوة وحملها على الجهاز ..'
             : '✅ تم تنزيل صورة الكود في مجلد التنزيلات.';
         alert(saveHint);
     }               
@@ -1643,7 +1643,7 @@ function del(i) {
 function markAttendanceManually(i) {
     let s = students[i];
     if (!activeSession) {
-        alert("ابدأ الحصة أولاً لتسجيل حضور يدوي");
+        alert("ابدأ الحصة الاول لتسجيل حضور يدوي");
         return;
     }
     ensureActiveSessionShape();

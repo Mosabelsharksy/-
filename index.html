@@ -830,6 +830,10 @@ window.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('session_expiry');
     }
     ensureDefaultGroups();
+    if (!localStorage.getItem(GLOBAL_TEACHER_PHONE_KEY)) {
+        localStorage.setItem(GLOBAL_TEACHER_PHONE_KEY, DEFAULT_TEACHER_PHONE);
+    }
+    ensureGroupsShape();
     renderGroupSelect();
     refreshSessionBanner();
     window.addEventListener('online', flushSyncQueue);
@@ -860,22 +864,58 @@ window.addEventListener('DOMContentLoaded', () => {
         const TEACHER_DISPLAY_NAME = ' السيد الشركسي';
         let offlineQueue = JSON.parse(localStorage.getItem('offline_queue_v1') || '[]');
 
+        const GLOBAL_TEACHER_PHONE_KEY = 'mos3ab_global_teacher_phone_v1';
+
+function getGlobalTeacherPhone() {
+    const v = (localStorage.getItem(GLOBAL_TEACHER_PHONE_KEY) || '').trim();
+    return v || DEFAULT_TEACHER_PHONE;
+}
+
+function normalizeTeacherPhone(raw) {
+    const v = String(raw || '').trim();
+    if (!v) return '';
+    return v;
+}
+
+function ensureGroupsShape() {
+    const global = getGlobalTeacherPhone();
+    const legacyDummies = new Set([
+        '201000000000',
+        '+201000000000',
+        '2010000000000',
+        '+2010000000000',
+        '01000000000'
+    ]);
+    groups = (groups || []).map(g => {
+        const cur = normalizeTeacherPhone(g?.teacherPhone);
+        const fixed = (!cur || legacyDummies.has(cur)) ? global : cur;
+        return { ...g, teacherPhone: fixed };
+    });
+}
+
 function loadGroupsFromStorage() {
     try {
         const cur = JSON.parse(localStorage.getItem('sms_groups') || 'null');
-        if (Array.isArray(cur) && cur.length > 0) return cur;
+        if (Array.isArray(cur) && cur.length > 0) {
+            groups = cur;
+            ensureGroupsShape();
+            return groups;
+        }
     } catch (_) {}
     try {
         const old = JSON.parse(localStorage.getItem('mos3ab_groups_v2') || 'null');
         if (Array.isArray(old) && old.length > 0) {
             localStorage.setItem('sms_groups', JSON.stringify(old));
-            return old;
+            groups = old;
+            ensureGroupsShape();
+            return groups;
         }
     } catch (_) {}
     return [];
 }
 
 function persistGroups() {
+    ensureGroupsShape();
     localStorage.setItem('sms_groups', JSON.stringify(groups));
     localStorage.setItem('mos3ab_groups_v2', JSON.stringify(groups));
     saveGroupsToIDB(groups);
@@ -1262,7 +1302,7 @@ function sendHonorTop3WA() {
     const gid = document.getElementById('globalHonorGroup')?.value || '';
     const year = document.getElementById('globalHonorYear')?.value || 'كل السنوات';
     const g = groups.find(x => x.id === gid);
-    const teacherPhoneRaw = g?.teacherPhone || DEFAULT_TEACHER_PHONE;
+    const teacherPhoneRaw = (g?.teacherPhone || '').trim() || DEFAULT_TEACHER_PHONE;
     const teacherPhone = teacherPhoneRaw.startsWith('0') ? '2' + teacherPhoneRaw : teacherPhoneRaw;
     let msg = `🏆 تقرير لوحة الشرف\nالسنة: ${year}\nالمجموعة: ${g?.name || 'كل المجموعات'}\n\n`;
     ranked.forEach((s, i) => { msg += `${i + 1}) ${s.name} - ${s.pts} نقطة\n`; });
@@ -1884,6 +1924,7 @@ function openAddGroupModal() {
       <h3 style="text-align:center;color:var(--gold)">إضافة مجموعة</h3>
       <input id="gName" placeholder="اسم المجموعة">
       <input id="gCenter" placeholder="اسم السنتر">
+      <input id="gTeacherPhone" placeholder="رقم المدرس (واتساب) +20..." value="${getGlobalTeacherPhone()}">
       <select id="gYear">
         <option value="الصف الأول الثانوي">أولى ثانوي</option>
         <option value="الصف الثاني الثانوي">تانية ثانوي</option>
@@ -1913,6 +1954,7 @@ function openEditSelectedGroupModal() {
       <h3 style="text-align:center;color:var(--gold)">تعديل المجموعة</h3>
       <input id="gName" placeholder="اسم المجموعة" value="${g.name || ''}">
       <input id="gCenter" placeholder="اسم السنتر" value="${g.center || ''}">
+      <input id="gTeacherPhone" placeholder="رقم المدرس (واتساب) +20..." value="${g.teacherPhone || getGlobalTeacherPhone()}">
       <select id="gYear">
         <option value="الصف الأول الثانوي" ${g.studyYear === 'الصف الأول الثانوي' ? 'selected' : ''}>أولى ثانوي</option>
         <option value="الصف الثاني الثانوي" ${g.studyYear === 'الصف الثاني الثانوي' ? 'selected' : ''}>تانية ثانوي</option>
@@ -1942,6 +1984,8 @@ function saveEditedSelectedGroup() {
     if (!name) return alert('اسم المجموعة مطلوب');
     groups[idx].name = name;
     groups[idx].center = document.getElementById('gCenter').value.trim();
+    const tp = (document.getElementById('gTeacherPhone')?.value || '').trim();
+    groups[idx].teacherPhone = tp || groups[idx].teacherPhone || getGlobalTeacherPhone();
     groups[idx].studyYear = document.getElementById('gYear').value;
     groups[idx].day = document.getElementById('gDay').value;
     groups[idx].time = document.getElementById('gTime').value;
@@ -1970,7 +2014,7 @@ function addGroup() {
         studyYear: document.getElementById('gYear').value,
         day: document.getElementById('gDay').value.trim(),
         time: document.getElementById('gTime').value.trim(),
-        teacherPhone: DEFAULT_TEACHER_PHONE,
+        teacherPhone: (document.getElementById('gTeacherPhone')?.value || '').trim() || getGlobalTeacherPhone(),
         theme: groupThemes[groups.length % groupThemes.length]
     };
     groups.push(g);
@@ -2896,7 +2940,8 @@ function sendGroupNotebookWA() {
     const absentNames = students.filter(s => s.groupId === gid && getMissedSessionsCount(s) >= 2).map(s => s.name).slice(0, 20);
     let msg = `📒 ملخص مجموعة ${g?.name || ''}\nإجمالي الطلاب: ${total}\nالدافعين: ${paid}\n\n⚠️ إنذارات غياب:\n${absentNames.join('\n') || 'لا يوجد'}\n\n🗒️ آخر الملاحظات:\n`;
     (notes[gid] || []).slice(-5).forEach((n, i) => { msg += `${i + 1}) ${n.text} - ${n.date}\n`; });
-    const phone = g?.teacherPhone ? (g.teacherPhone.startsWith('0') ? '2' + g.teacherPhone : g.teacherPhone) : '';
+    const raw = (g?.teacherPhone || '').trim() || DEFAULT_TEACHER_PHONE;
+    const phone = raw.startsWith('0') ? '2' + raw : raw;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 

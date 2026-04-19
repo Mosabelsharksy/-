@@ -101,10 +101,26 @@
         @media (max-width: 740px) {
             .all-students-modal input,
             .all-students-modal select { width: 100%; box-sizing: border-box; }
-            .stats-grid, .kpi-grid, .quick-actions, .hub-actions { grid-template-columns: 1fr; }
+            .stats-grid, .kpi-grid, .quick-actions { grid-template-columns: 1fr; }
             .nav h2 { font-size: 17px; }
             .pay-grid { grid-template-columns: 1fr; }
-            .hub-actions { grid-template-columns: 1fr; }
+            /* الشريط الرئيسي (8 أزرار): صف 3 + صف 3 + صف 2 في المنتصف — للموبايل فقط */
+            .hub-actions {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-content: flex-start;
+                gap: 10px;
+                margin-bottom: 18px;
+            }
+            .hub-actions .hub-btn {
+                flex: 0 0 calc((100% - 20px) / 3);
+                max-width: calc((100% - 20px) / 3);
+                width: calc((100% - 20px) / 3);
+                box-sizing: border-box;
+                min-height: 70px;
+                font-size: 13px;
+            }
             .quick-actions { grid-template-columns: 1fr; }
             .group-card { min-height: 130px; }
             .table-wrapper { overflow-x: scroll; }
@@ -348,10 +364,25 @@
 
     <script>
         if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(err => console.log('SW registration failed', err));
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed', err));
+                navigator.serviceWorker.getRegistration().then(reg => reg && reg.update()).catch(() => {});
             });
         }
+
+        /** ========== تسجيل الدخول — غيّر من هنا فقط ==========
+         * الاسم: غيّر قيمة MOS3AB_AUTH_USERNAME.
+         * كلمة المرور: لا تكتبها نصًا هنا. احسب SHA-256 (64 حرف hex) لكلمة سرك وضعها في MOS3AB_AUTH_PASS_SHA256_HEX.
+         * الهاش الحالي يطابق كلمة المرور: MOS3AB_Secure_Default_2026! — غيّرها فورًا في بيئة الإنتاج.
+         */
+        const MOS3AB_AUTH_USERNAME = 'mos3ab';
+        const MOS3AB_AUTH_PASS_SHA256_HEX = '5ec570316e3115200c4bd655cd37e5bc2ba2101101155ff4edc242a87789fff8';
+
+        const MOS3AB_LOGIN_LOCK_KEY = 'mos3AB_login_lock_until';
+        const MOS3AB_LOGIN_FAILS_KEY = 'mos3AB_login_fail_count';
+        const MOS3AB_LOGIN_MAX_FAILS = 12;
+        const MOS3AB_LOGIN_LOCK_MS = 5 * 60 * 1000;
+
         let trustedTimeOffsetMs = Number(localStorage.getItem('trusted_time_offset_ms') || '0');
         let clockTrustState = localStorage.getItem('clock_trust_state') || 'device';
         function getNowMs() {
@@ -660,11 +691,21 @@ function initRealtimeUpdates() {
 
 // 2. دالة تسجيل الدخول
 async function handleLogin() {
+    const errEl = document.getElementById('loginError');
+    const lockUntil = Number(sessionStorage.getItem(MOS3AB_LOGIN_LOCK_KEY) || 0);
+    if (lockUntil > Date.now()) {
+        const mins = Math.ceil((lockUntil - Date.now()) / 60000);
+        errEl.textContent = `محاولات كثيرة جداً. حاول مرة أخرى بعد حوالي ${mins} دقيقة.`;
+        errEl.style.display = 'block';
+        return;
+    }
     const user = document.getElementById('adminUser').value;
     const pass = document.getElementById('adminPass').value;
 
     const ok = await validateCredentials(user, pass);
-    if(ok) {
+    if (ok) {
+        sessionStorage.removeItem(MOS3AB_LOGIN_FAILS_KEY);
+        sessionStorage.removeItem(MOS3AB_LOGIN_LOCK_KEY);
         localStorage.setItem('sessionActive', 'true');
         localStorage.setItem('session_token', String(getNowMs()));
         localStorage.setItem('session_expiry', String(getNowMs() + (12 * 60 * 60 * 1000)));
@@ -672,7 +713,16 @@ async function handleLogin() {
         await showTeacherWelcomeSequence();
         await launchApp();
     } else {
-        document.getElementById('loginError').style.display = 'block';
+        let fails = Number(sessionStorage.getItem(MOS3AB_LOGIN_FAILS_KEY) || 0) + 1;
+        sessionStorage.setItem(MOS3AB_LOGIN_FAILS_KEY, String(fails));
+        if (fails >= MOS3AB_LOGIN_MAX_FAILS) {
+            sessionStorage.setItem(MOS3AB_LOGIN_LOCK_KEY, String(Date.now() + MOS3AB_LOGIN_LOCK_MS));
+            sessionStorage.removeItem(MOS3AB_LOGIN_FAILS_KEY);
+            errEl.textContent = 'تم الإغلاق المؤقت لبضع دقائق بسبب محاولات خاطئة متكررة.';
+        } else {
+            errEl.textContent = 'البيانات غير صحيحة!';
+        }
+        errEl.style.display = 'block';
     }
 }
 
@@ -703,6 +753,7 @@ async function launchApp() {
     try {
         await Promise.all([loadGroupsFromFirestore(), loadStudentsFromFirestore(), loadExpensesFromFirestore(), loadActiveSessionFromFirestore(), syncTrustedClock()]);
         initRealtimeUpdates();
+        realtimeListenersStarted = true;
         renderGroupSelect();
         draw();
         restoreLastView();
@@ -726,8 +777,28 @@ async function launchApp() {
         draw();
         restoreLastView();
         refreshSessionBanner();
+        flushSyncQueue();
     }
     dataLoaded = true;
+}
+
+async function tryStartRealtimeAfterReconnect() {
+    if (!dataLoaded || realtimeListenersStarted || !navigator.onLine || realtimeReconnectInFlight) return;
+    realtimeReconnectInFlight = true;
+    try {
+        await Promise.all([loadGroupsFromFirestore(), loadStudentsFromFirestore(), loadExpensesFromFirestore(), loadActiveSessionFromFirestore(), syncTrustedClock()]);
+        initRealtimeUpdates();
+        realtimeListenersStarted = true;
+        renderGroupSelect();
+        draw();
+        updateKPIs();
+        refreshSessionBanner();
+        flushSyncQueue();
+    } catch (e) {
+        console.log('لم يكتمل تحديث البيانات بعد عودة النت (سيبقى العمل محليًا حتى يصل الاتصال)', e);
+    } finally {
+        realtimeReconnectInFlight = false;
+    }
 }
 
 function restoreLastView() {
@@ -759,11 +830,11 @@ window.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('session_expiry');
     }
     ensureDefaultGroups();
-    bootstrapAuthDefaults();
     renderGroupSelect();
     refreshSessionBanner();
     window.addEventListener('online', flushSyncQueue);
     window.addEventListener('online', syncTrustedClock);
+    window.addEventListener('online', tryStartRealtimeAfterReconnect);
 });
         let students = [];
         let editIdx = -1;
@@ -779,6 +850,8 @@ window.addEventListener('DOMContentLoaded', () => {
         let lastScanText = '';
         let lastScanAt = 0;
         let scanCooldownUntil = 0;
+        let realtimeListenersStarted = false;
+        let realtimeReconnectInFlight = false;
         let allStudentsHubPage = 1;
         const ALL_STUDENTS_PAGE_SIZE = 50;
         const groupThemes = ['#8a2be2', '#0b7285', '#2b8a3e', '#e67700', '#c2255c', '#364fc7'];
@@ -806,11 +879,17 @@ function persistGroups() {
     localStorage.setItem('sms_groups', JSON.stringify(groups));
     localStorage.setItem('mos3ab_groups_v2', JSON.stringify(groups));
     saveGroupsToIDB(groups);
-    if (navigator.onLine) {
-        groups.forEach(g => {
-            if (g.id) groupsRef.doc(g.id).set(g, { merge: true }).catch(err => console.log('Failed to sync group', g.id, err));
+    if (!navigator.onLine) {
+        let t = getNowMs();
+        groups.forEach((g, i) => {
+            if (g.id) enqueueSync({ type: 'upsertGroup', id: g.id, payload: g, ts: t + i });
         });
+        return;
     }
+    groups.forEach(g => {
+        if (!g.id) return;
+        groupsRef.doc(g.id).set(g, { merge: true }).catch(() => enqueueSync({ type: 'upsertGroup', id: g.id, payload: g, ts: getNowMs() }));
+    });
 }
 
 function save(studentObj) {
@@ -852,6 +931,7 @@ async function flushSyncQueue() {
             if (op.type === 'upsert') await db.collection('students').doc(op.id).set(op.payload, { merge: true });
             if (op.type === 'delete') await db.collection('students').doc(op.id).delete();
             if (op.type === 'deleteGroup') await db.collection('groups').doc(op.id).delete();
+            if (op.type === 'upsertGroup') await db.collection('groups').doc(op.id).set(op.payload, { merge: true });
             if (op.type === 'upsertExpense') await expensesRef.doc(op.id).set(op.payload, { merge: true });
             if (op.type === 'deleteExpense') await expensesRef.doc(op.id).delete();
             if (op.type === 'activeSessionSet') await appStateRef.set(op.payload || null, { merge: false });
@@ -2524,27 +2604,6 @@ function openGroupNotebook(forcedGroupId) {
     const absent = students.filter(s => s.groupId === gid && getMissedSessionsCount(s) > 0).length;
     const paid = students.filter(s => s.groupId === gid && s.payment).length;
     const total = students.filter(s => s.groupId === gid).length;
-    const groupStudents = students.filter(s => s.groupId === gid);
-    const tableRows = groupStudents.map(s => {
-      normalizePaymentStatus(s);
-      const lastAtt = (s.attendanceLog || []).slice(-3).map(a => a.status === 'present' ? '✔' : '✖').join(' ') || '---';
-      const lastEx = (s.exams || []).slice(-3).map(e => `[${e.score}/${e.total}]`).join(' | ') || 'لا يوجد';
-      const lastHw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || 'لا يوجد';
-      const lastPayStr = (s.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).slice(0,3).map(p => p.type || '—').join(' | ') || '—';
-      const status = getNotebookFinancialStatus(s);
-      const points = calculatePoints(s).total;
-      return `
-        <tr>
-          <td style="position:sticky; right:0; background:#1a1a2e; text-align:right; font-weight:bold; white-space:nowrap; border-left:1px solid #444;">${s.name}</td>
-          <td>${lastAtt}</td>
-          <td style="font-size:11px;">${lastEx}</td>
-          <td style="font-size:11px;">${lastHw}</td>
-          <td style="font-size:11px;">${lastPayStr}</td>
-          <td>${status}</td>
-          <td style="font-weight:700;color:var(--success)">${points}</td>
-        </tr>
-      `;
-    }).join('');
     document.getElementById('modalBody').innerHTML = `
       <h3>دفتر المجموعة</h3>
       <select id="notebookGroup" onchange="openGroupNotebook(this.value)">${groups.map(g => `<option value="${g.id}" ${g.id === gid ? 'selected' : ''}>${g.name}</option>`).join('')}</select>
@@ -2552,6 +2611,31 @@ function openGroupNotebook(forcedGroupId) {
       <div class="log-item"><b>إجمالي الطلاب:</b> ${total}</div>
       <div class="log-item"><b>الدافعين:</b> ${paid}</div>
       <div class="log-item"><b>لديهم غياب:</b> ${absent}</div>
+      <div class="glass-box" style="padding:12px; margin:10px 0;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;align-items:end;">
+          <div>
+            <small style="display:block;opacity:.8;margin-bottom:4px;">عدد الطلاب في الصفحة</small>
+            <select id="notebookPageSize" onchange="changeNotebookPageSize()">
+              <option value="20">20</option>
+              <option value="30" selected>30</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="100000">الكل</option>
+            </select>
+          </div>
+          <div>
+            <small style="display:block;opacity:.8;margin-bottom:4px;">انتقل للصفحة</small>
+            <select id="notebookPageSelect" onchange="jumpNotebookPage(this.value)"></select>
+          </div>
+          <div id="notebookPageMeta" class="log-item" style="margin:0; min-height:48px; display:flex; align-items:center; justify-content:center; text-align:center;"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:10px;">
+          <button class="btn" style="background:#495057" onclick="changeNotebookPage(-1)">⬅️ السابق</button>
+          <button class="btn" style="background:#495057" onclick="changeNotebookPage(1)">➡️ التالي</button>
+          <button class="btn" style="background:#343a40;" onclick="printGroupNotebookPage('page')">🖨️ طباعة الصفحة الحالية</button>
+          <button class="btn" style="background:#212529;" onclick="printGroupNotebookPage('all')">🖨️ طباعة كل الطلاب</button>
+        </div>
+      </div>
       <div style="overflow-x:auto; background:rgba(255,255,255,0.02); border-radius:15px; margin:10px 0;">
         <table style="min-width:780px; font-size:13px;">
           <thead><tr>
@@ -2563,13 +2647,12 @@ function openGroupNotebook(forcedGroupId) {
             <th>الحالة المالية</th>
             <th>النقط</th>
           </tr></thead>
-          <tbody>${tableRows || '<tr><td colspan="7">لا يوجد طلاب</td></tr>'}</tbody>
+          <tbody id="groupNotebookTableBody"></tbody>
         </table>
       </div>
       <textarea id="groupNoteText" style="width:100%;min-height:90px;background:rgba(0,0,0,0.1);color:var(--text);border:1px solid rgba(128,128,128,0.2);border-radius:10px;padding:10px;" placeholder="ملاحظات المجموعة..."></textarea>
       <button class="btn btn-primary" onclick="saveGroupNote()">حفظ ملاحظة</button>
       <button class="btn btn-primary" style="background:var(--whatsapp)" onclick="sendGroupNotebookWA()">إرسال ملخص للمدرس</button>
-      <button class="btn btn-primary" style="background:#343a40;" onclick="printGroupNotebookPage()">🖨️ طباعة / معاينة</button>
       <button class="btn btn-primary" style="background:linear-gradient(135deg,#3b5bdb,#7c3aed); box-shadow:0 10px 24px rgba(59,91,219,.35);" onclick="downloadGroupNotebookFile()">⬇️ تحميل الملف PDF</button>
       <div id="groupNotesList" class="mini-list"></div>
       <button class="btn btn-primary" style="background:#555" onclick="closeModal()">إغلاق</button>
@@ -2579,6 +2662,88 @@ function openGroupNotebook(forcedGroupId) {
     if (modal) modal.style.maxWidth = "95%";
     document.getElementById('notebookGroup').value = gid;
     renderGroupNotes(gid);
+    initGroupNotebookPaging(gid);
+}
+
+function getGroupNotebookRows(list, startIndex = 0) {
+    return list.map((s, idx) => {
+        normalizePaymentStatus(s);
+        const lastAtt = (s.attendanceLog || []).slice(-3).map(a => a.status === 'present' ? '✔' : '✖').join(' ') || '---';
+        const lastEx = (s.exams || []).slice(-3).map(e => `[${e.score}/${e.total}]`).join(' | ') || 'لا يوجد';
+        const lastHw = (s.homeworks || []).slice(-3).map(h => h.rank).join(' | ') || 'لا يوجد';
+        const lastPayStr = (s.paymentLogs || []).slice().sort((a,b)=>Number(b.ts||0)-Number(a.ts||0)).slice(0,3).map(p => p.type || '—').join(' | ') || '—';
+        const status = getNotebookFinancialStatus(s);
+        const points = calculatePoints(s).total;
+        return `
+          <tr>
+            <td style="position:sticky; right:0; background:#1a1a2e; text-align:right; font-weight:bold; white-space:nowrap; border-left:1px solid #444;">${startIndex + idx + 1}. ${s.name}</td>
+            <td>${lastAtt}</td>
+            <td style="font-size:11px;">${lastEx}</td>
+            <td style="font-size:11px;">${lastHw}</td>
+            <td style="font-size:11px;">${lastPayStr}</td>
+            <td>${status}</td>
+            <td style="font-weight:700;color:var(--success)">${points}</td>
+          </tr>
+        `;
+    }).join('');
+}
+
+function initGroupNotebookPaging(gid) {
+    const defaultSize = Number(localStorage.getItem('group_notebook_page_size') || '30');
+    localStorage.setItem('group_notebook_page_size', String(defaultSize));
+    localStorage.setItem('group_notebook_page', '1');
+    const sizeEl = document.getElementById('notebookPageSize');
+    if (sizeEl) sizeEl.value = String(defaultSize);
+    renderGroupNotebookPage(gid);
+}
+
+function renderGroupNotebookPage(gid) {
+    const list = students.filter(s => s.groupId === gid);
+    const pageSize = Math.max(1, Number(localStorage.getItem('group_notebook_page_size') || '30'));
+    const pageCount = Math.max(1, Math.ceil(list.length / pageSize));
+    let currentPage = Math.max(1, Number(localStorage.getItem('group_notebook_page') || '1'));
+    if (currentPage > pageCount) currentPage = pageCount;
+    localStorage.setItem('group_notebook_page', String(currentPage));
+    const start = (currentPage - 1) * pageSize;
+    const visible = pageSize >= 100000 ? list : list.slice(start, start + pageSize);
+    const body = document.getElementById('groupNotebookTableBody');
+    if (body) body.innerHTML = getGroupNotebookRows(visible, start) || '<tr><td colspan="7" style="text-align:center;">لا يوجد طلاب</td></tr>';
+    const meta = document.getElementById('notebookPageMeta');
+    if (meta) {
+        const from = list.length ? start + 1 : 0;
+        const to = list.length ? start + visible.length : 0;
+        meta.textContent = `عرض ${from} - ${to} من إجمالي ${list.length} طالب | صفحة ${currentPage} / ${pageCount}`;
+    }
+    const pageSel = document.getElementById('notebookPageSelect');
+    if (pageSel) {
+        let opts = '';
+        for (let i = 1; i <= pageCount; i++) opts += `<option value="${i}" ${i === currentPage ? 'selected' : ''}>الصفحة ${i}</option>`;
+        pageSel.innerHTML = opts;
+        pageSel.value = String(currentPage);
+    }
+}
+
+function changeNotebookPage(delta) {
+    const gid = document.getElementById('notebookGroup')?.value || '';
+    if (!gid) return;
+    const next = Math.max(1, Number(localStorage.getItem('group_notebook_page') || '1') + Number(delta || 0));
+    localStorage.setItem('group_notebook_page', String(next));
+    renderGroupNotebookPage(gid);
+}
+
+function jumpNotebookPage(page) {
+    const gid = document.getElementById('notebookGroup')?.value || '';
+    if (!gid) return;
+    localStorage.setItem('group_notebook_page', String(Math.max(1, Number(page || 1))));
+    renderGroupNotebookPage(gid);
+}
+
+function changeNotebookPageSize() {
+    const gid = document.getElementById('notebookGroup')?.value || '';
+    const size = Number(document.getElementById('notebookPageSize')?.value || '30');
+    localStorage.setItem('group_notebook_page_size', String(size));
+    localStorage.setItem('group_notebook_page', '1');
+    if (gid) renderGroupNotebookPage(gid);
 }
 
 function downloadGroupNotebookFile() {
@@ -2654,10 +2819,14 @@ function downloadGroupNotebookFile() {
     });
 }
 
-function printGroupNotebookPage() {
+function printGroupNotebookPage(mode = 'all') {
     const gid = document.getElementById('notebookGroup')?.value || '';
     const g = groups.find(x => x.id === gid);
-    const list = students.filter(s => s.groupId === gid);
+    const allList = students.filter(s => s.groupId === gid);
+    const pageSize = Math.max(1, Number(localStorage.getItem('group_notebook_page_size') || '30'));
+    const currentPage = Math.max(1, Number(localStorage.getItem('group_notebook_page') || '1'));
+    const start = (currentPage - 1) * pageSize;
+    const list = mode === 'page' && pageSize < 100000 ? allList.slice(start, start + pageSize) : allList;
     const rows = list.map((s, idx) => {
         normalizePaymentStatus(s);
         const p = calculatePoints(s);
@@ -2687,7 +2856,7 @@ function printGroupNotebookPage() {
         @media print { body { padding: 8px; } }
       </style></head><body>
       <h1>دفتر المجموعة — ${escapeHtmlNotebook(g?.name || '---')}</h1>
-      <p style="margin:0 0 12px;font-size:13px;">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}</p>
+      <p style="margin:0 0 12px;font-size:13px;">التاريخ: ${getTodayDate()} | عدد الطلاب: ${list.length}${mode === 'page' && pageSize < 100000 ? ` | الصفحة الحالية: ${currentPage}` : ''}</p>
       <table><thead><tr>
         <th>#</th><th>الطالب</th><th>آخر 3 حصص</th><th>آخر 3 امتحانات</th><th>آخر 3 واجبات</th><th>آخر 3 دفعات</th><th>ملخص مالي</th><th>النقاط</th>
       </tr></thead><tbody>${rows || '<tr><td colspan="8" style="text-align:center;">لا يوجد طلاب</td></tr>'}</tbody></table>
@@ -2919,19 +3088,10 @@ function isSessionValid() {
     return exp > getNowMs();
 }
 
-async function bootstrapAuthDefaults() {
-    if (localStorage.getItem('auth_user')) return;
-    localStorage.setItem('auth_user', 'admin');
-    const h = await hashText('123');
-    localStorage.setItem('auth_hash', h);
-}
-
 async function validateCredentials(user, pass) {
-    await bootstrapAuthDefaults();
-    const savedUser = localStorage.getItem('auth_user') || 'admin';
-    const savedHash = localStorage.getItem('auth_hash') || '';
-    const inputHash = await hashText(pass);
-    return user === savedUser && inputHash === savedHash;
+    const u = (user || '').trim();
+    const inputHash = await hashText(pass || '');
+    return u === MOS3AB_AUTH_USERNAME && inputHash === MOS3AB_AUTH_PASS_SHA256_HEX;
 }
 
 async function hashText(text) {

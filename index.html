@@ -262,7 +262,7 @@
     </div>
     <div class="nav">
         <div>
-            <h2 style="font-size:18px; letter-spacing:1px;"> M-Solutions </h2>
+            <h2 style="font-size:18px; letter-spacing:1px;"> السيد الشركسي </h2>
             <span id="groupLabel" style="color:var(--gold); font-size:12px; display:block">الرئيسية والمالية 🏛️</span>
         </div>
         <div style="display:flex; gap:8px;">
@@ -381,8 +381,8 @@
          * كلمة المرور: لا تكتبها نصًا هنا. احسب SHA-256 (64 حرف hex) لكلمة سرك وضعها في MOS3AB_AUTH_PASS_SHA256_HEX.
          * الهاش الحالي يطابق كلمة المرور: MOS3AB_Secure_Default_2026! — غيّرها فورًا في بيئة الإنتاج.
          */
-        const MOS3AB_AUTH_USERNAME = 'elsharksy';
-        const MOS3AB_AUTH_PASS_SHA256_HEX = '6f546765948c7f80469a4bc209ef27c65c31651ecc88fd9aa70bf0fb227c959e';
+        const MOS3AB_AUTH_USERNAME = 'elsayed';
+        const MOS3AB_AUTH_PASS_SHA256_HEX = '84144a3a2a093be911b5e7aca07877ab54f0a127b006f020f533fd01b87040a5';
 
         const MOS3AB_LOGIN_LOCK_KEY = 'mos3AB_login_lock_until';
         const MOS3AB_LOGIN_FAILS_KEY = 'mos3AB_login_fail_count';
@@ -437,7 +437,7 @@ function getNowDateObj() {
  /* لتغيير مشروع Firebase بالكامل: عدّل كائن firebaseConfig فقط (الأسطر التالية حتى إغلاق القوس).
     باقي الكود يستخدم المتغير db والمراجع studentsRef/groupsRef/... المشتقة منه — لا حاجة لتعديل أكثر من مكان. */
  const firebaseConfig = {
-     apiKey: "AIzaSyDVaJ-9Vq2ZXloVO3PdwnzrlFxSSVJ_lo8",
+      apiKey: "AIzaSyDVaJ-9Vq2ZXloVO3PdwnzrlFxSSVJ_lo8",
 
   authDomain: "test-a14a8.firebaseapp.com",
 
@@ -452,6 +452,9 @@ function getNowDateObj() {
   measurementId: "G-6JN4WSGP7F" 
     };
     firebase.initializeApp(firebaseConfig);
+try {
+    firebase.firestore().settings({ experimentalForceLongPolling: true });
+} catch (e) {}
 // ضيف الكود ده هنا
 firebase.firestore().enablePersistence()
   .catch((err) => {
@@ -462,6 +465,30 @@ firebase.firestore().enablePersistence()
       }
   });
 const db = firebase.firestore();
+/** أول تحميل من السيرفر (مش كاش المتصفح) — يمنع اختلاف لاب/موبايل/سفاري */
+function firestoreRemoteGetOpts() {
+    return navigator.onLine ? { source: 'server' } : undefined;
+}
+function sortStudentsByName(arr) {
+    return (arr || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ar', { sensitivity: 'base' }));
+}
+function sortGroupsByName(arr) {
+    return (arr || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ar', { sensitivity: 'base' }));
+}
+function sortExpensesByTsDesc(arr) {
+    return (arr || []).slice().sort((a, b) => {
+        const ta = a.ts != null ? Number(a.ts) : 0;
+        const tb = b.ts != null ? Number(b.ts) : 0;
+        return tb - ta;
+    });
+}
+let firestoreRealtimeUnsubs = [];
+function teardownRealtimeUpdates() {
+    firestoreRealtimeUnsubs.forEach(fn => {
+        try { fn(); } catch (e) {}
+    });
+    firestoreRealtimeUnsubs = [];
+}
 const studentsRef = db.collection('students');
 const groupsRef = db.collection('groups');
 const expensesRef = db.collection('expenses');
@@ -585,45 +612,60 @@ async function loadQueueFromIDB() {
 }
 
 async function loadStudentsFromFirestore() {
-    const snapshot = await studentsRef.orderBy('name').get();
-    if (!snapshot.empty) {
-        students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        ensureDataShape();
-        localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
-        saveStudentsToIDB(students);
-    } else {
+    try {
+        const snapshot = await studentsRef.get(firestoreRemoteGetOpts());
+        if (!snapshot.empty) {
+            students = sortStudentsByName(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } else {
+            students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
+        }
+    } catch (e) {
+        console.log('loadStudentsFromFirestore', e);
         students = JSON.parse(localStorage.getItem('pro_v_ultimate') || '[]');
     }
+    ensureDataShape();
+    localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
+    await saveStudentsToIDB(students);
 }
 
 async function loadGroupsFromFirestore() {
-    const snapshot = await groupsRef.orderBy('name').get();
-    if (!snapshot.empty) {
-        groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        persistGroups();
-        await saveGroupsToIDB(groups);
-    } else {
+    try {
+        const snapshot = await groupsRef.get(firestoreRemoteGetOpts());
+        if (!snapshot.empty) {
+            groups = sortGroupsByName(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            persistGroups();
+            await saveGroupsToIDB(groups);
+        } else {
+            groups = loadGroupsFromStorage();
+            groups.forEach(g => {
+                if (g.id) groupsRef.doc(g.id).set(g, { merge: true }).catch(() => {});
+            });
+        }
+    } catch (e) {
+        console.log('loadGroupsFromFirestore', e);
         groups = loadGroupsFromStorage();
-        groups.forEach(g => {
-            if (g.id) groupsRef.doc(g.id).set(g, { merge: true }).catch(() => {});
-        });
     }
     renderGroupSelect();
 }
 
 async function loadExpensesFromFirestore() {
-    const snapshot = await expensesRef.orderBy('ts', 'desc').get();
-    if (!snapshot.empty) {
-        expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        localStorage.setItem('center_expenses_v1', JSON.stringify(expenses));
-    } else {
+    try {
+        const snapshot = await expensesRef.get(firestoreRemoteGetOpts());
+        if (!snapshot.empty) {
+            expenses = sortExpensesByTsDesc(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            localStorage.setItem('center_expenses_v1', JSON.stringify(expenses));
+        } else {
+            expenses = JSON.parse(localStorage.getItem('center_expenses_v1') || '[]');
+        }
+    } catch (e) {
+        console.log('loadExpensesFromFirestore', e);
         expenses = JSON.parse(localStorage.getItem('center_expenses_v1') || '[]');
     }
 }
 
 async function loadActiveSessionFromFirestore() {
     try {
-        const doc = await appStateRef.get();
+        const doc = await appStateRef.get(firestoreRemoteGetOpts());
         if (doc.exists && doc.data()?.id) {
             activeSession = doc.data();
             ensureActiveSessionShape();
@@ -660,8 +702,11 @@ async function syncTrustedClock() {
 }
 
 function initRealtimeUpdates() {
-    groupsRef.onSnapshot(snapshot => {
-        groups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    teardownRealtimeUpdates();
+    firestoreRealtimeUnsubs.push(groupsRef.onSnapshot(snapshot => {
+        const incomingG = sortGroupsByName(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        if (!navigator.onLine && incomingG.length === 0 && groups.length > 0) return;
+        groups = incomingG;
         ensureDataShape();
         persistGroups();
         renderGroupSelect();
@@ -671,25 +716,41 @@ function initRealtimeUpdates() {
         }
         draw();
         updateKPIs();
-    }, err => console.log('Firestore groups listener error', err));
+    }, err => console.log('Firestore groups listener error', err)));
 
-    studentsRef.onSnapshot(snapshot => {
-        students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    firestoreRealtimeUnsubs.push(studentsRef.onSnapshot(snapshot => {
+        const incomingS = sortStudentsByName(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        if (!navigator.onLine && incomingS.length === 0 && students.length > 0) return;
+        students = incomingS;
         ensureDataShape();
         localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
+        saveStudentsToIDB(students);
         draw();
         updateKPIs();
-    }, err => console.log('Firestore students listener error', err));
+    }, err => console.log('Firestore students listener error', err)));
 
-    expensesRef.onSnapshot(snapshot => {
-        expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    firestoreRealtimeUnsubs.push(expensesRef.onSnapshot(snapshot => {
+        const incomingE = sortExpensesByTsDesc(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        if (!navigator.onLine && incomingE.length === 0 && expenses.length > 0) return;
+        expenses = incomingE;
         localStorage.setItem('center_expenses_v1', JSON.stringify(expenses));
         updateKPIs();
-    }, err => console.log('Firestore expenses listener error', err));
+    }, err => console.log('Firestore expenses listener error', err)));
 
-    appStateRef.onSnapshot(doc => {
+    firestoreRealtimeUnsubs.push(appStateRef.onSnapshot(doc => {
         const remoteSession = doc.exists ? doc.data() : null;
         if (!remoteSession || !remoteSession.id) {
+            if (!navigator.onLine) {
+                try {
+                    const cur = JSON.parse(localStorage.getItem('active_session') || 'null');
+                    if (cur && cur.id) {
+                        activeSession = cur;
+                        ensureActiveSessionShape();
+                        refreshSessionBanner();
+                        return;
+                    }
+                } catch (_) {}
+            }
             activeSession = null;
             localStorage.removeItem('active_session');
         } else {
@@ -698,7 +759,7 @@ function initRealtimeUpdates() {
             localStorage.setItem('active_session', JSON.stringify(activeSession));
         }
         refreshSessionBanner();
-    }, err => console.log('Firestore active_session listener error', err));
+    }, err => console.log('Firestore active_session listener error', err)));
 }
 
 // 2. دالة تسجيل الدخول
@@ -798,6 +859,12 @@ async function launchApp() {
         flushSyncQueue();
     } catch (e) { 
         console.log("خطأ/بطء في جلب البيانات من السيرفر، هكمل من الكاش المحلي حالياً");
+        if (!realtimeListenersStarted) {
+            try {
+                initRealtimeUpdates();
+                realtimeListenersStarted = true;
+            } catch (_) {}
+        }
         draw();
         restoreLastView();
         refreshSessionBanner();
@@ -891,9 +958,9 @@ window.addEventListener('DOMContentLoaded', () => {
         let allStudentsHubPage = 1;
         const ALL_STUDENTS_PAGE_SIZE = 50;
         const groupThemes = ['#8a2be2', '#0b7285', '#2b8a3e', '#e67700', '#c2255c', '#364fc7'];
-        const DEFAULT_TEACHER_PHONE = "+201228984182";
+        const DEFAULT_TEACHER_PHONE = "+201205009564";
         /** اسم الأستاذ يظهر في شاشة الترحيب بعد تسجيل الدخول — غيّره لاسمك */
-        const TEACHER_DISPLAY_NAME = 'صديقي العزيز';
+        const TEACHER_DISPLAY_NAME = ' السيد الشركسي';
         let offlineQueue = JSON.parse(localStorage.getItem('offline_queue_v1') || '[]');
 
         const GLOBAL_TEACHER_PHONE_KEY = 'mos3ab_global_teacher_phone_v1';
@@ -954,13 +1021,13 @@ function persistGroups() {
 }
 
 function syncSingleGroup(groupObj) {
-    if (!groupObj || !groupObj.id) return;
+    if (!groupObj || !groupObj.id) return Promise.resolve();
     if (navigator.onLine) {
-        groupsRef.doc(groupObj.id).set(groupObj, { merge: true })
-            .catch(() => enqueueSync({ type: 'upsertGroup', id: groupObj.id, payload: groupObj, ts: getNowMs() }));
-        return;
+        return groupsRef.doc(groupObj.id).set(groupObj, { merge: true })
+            .catch(() => { enqueueSync({ type: 'upsertGroup', id: groupObj.id, payload: groupObj, ts: getNowMs() }); });
     }
     enqueueSync({ type: 'upsertGroup', id: groupObj.id, payload: groupObj, ts: getNowMs() });
+    return Promise.resolve();
 }
 
 function syncModalLockState() {
@@ -1001,14 +1068,58 @@ function syncActiveSessionToFirebase() {
     appStateRef.set(activeSession, { merge: false }).catch(() => enqueueSync({ type: 'activeSessionSet', payload: activeSession, ts: getNowMs(), id: 'active_session' }));
 }
 
+function persistOfflineQueue() {
+    localStorage.setItem('offline_queue_v1', JSON.stringify(offlineQueue));
+}
+
+/** يمنع إن طابور المزامنة يبعت upsert قديم بعد delete فيعيد الطالب/المجموعة من الموت */
+function purgeOfflineQueueForStudentId(id) {
+    if (!id) return;
+    offlineQueue = offlineQueue.filter(op => !((op.type === 'upsert' || op.type === 'delete') && op.id === id));
+    persistOfflineQueue();
+}
+function purgeOfflineQueueForGroupId(id) {
+    if (!id) return;
+    offlineQueue = offlineQueue.filter(op => !((op.type === 'upsertGroup' || op.type === 'deleteGroup') && op.id === id));
+    persistOfflineQueue();
+}
+function purgeOfflineQueueForExpenseId(id) {
+    if (!id) return;
+    offlineQueue = offlineQueue.filter(op => !((op.type === 'upsertExpense' || op.type === 'deleteExpense') && op.id === id));
+    persistOfflineQueue();
+}
+
+/** لكل كيان آخر عملية فقط (حسب الترتيب في الطابور) — يقلل تعارض upsert/delete */
+function dedupeOfflineQueueLatestOnly() {
+    const keyOf = (op) => {
+        if (op.type === 'upsert' || op.type === 'delete') return `s:${op.id}`;
+        if (op.type === 'upsertGroup' || op.type === 'deleteGroup') return `g:${op.id}`;
+        if (op.type === 'upsertExpense' || op.type === 'deleteExpense') return `e:${op.id}`;
+        if (op.type === 'activeSessionSet' || op.type === 'activeSessionClear') return 'session';
+        return null;
+    };
+    const lastIdx = new Map();
+    offlineQueue.forEach((op, i) => {
+        const k = keyOf(op);
+        if (k) lastIdx.set(k, i);
+    });
+    offlineQueue = offlineQueue.filter((op, i) => {
+        const k = keyOf(op);
+        if (!k) return true;
+        return lastIdx.get(k) === i;
+    });
+    persistOfflineQueue();
+}
+
 function enqueueSync(op) {
     offlineQueue.push(op);
-    localStorage.setItem('offline_queue_v1', JSON.stringify(offlineQueue));
+    dedupeOfflineQueueLatestOnly();
     flushSyncQueue();
 }
 
 async function flushSyncQueue() {
     if (!navigator.onLine) return;
+    dedupeOfflineQueueLatestOnly();
     if (!offlineQueue.length) return;
     const copy = [...offlineQueue];
     for (const op of copy) {
@@ -1683,7 +1794,7 @@ function del(i) {
     let s = students[i]; // بنعرف هو مين الطالب اللي هنمسحه
     
     if(confirm(`هل أنت متأكد من حذف الطالب: ${s.name} نهائياً؟`)) {
-        
+        purgeOfflineQueueForStudentId(s.id);
         if (navigator.onLine) {
             studentsRef.doc(s.id).delete().catch(() => enqueueSync({ type: 'delete', id: s.id, ts: getNowMs() }));
         } else {
@@ -1930,10 +2041,14 @@ function deleteGroup(groupId, allowStudentsDelete = false) {
         const ok2 = confirm(`تنبيه مهم: هذا سيحذف ${count} طالباً نهائياً من النظام.
 هل تريد المتابعة؟`);
         if (!ok2) return;
+    }
+    if (!confirm(`تأكيد حذف المجموعة: ${g.name}؟`)) return;
+    purgeOfflineQueueForGroupId(groupId);
+    removedStudents.forEach(s => purgeOfflineQueueForStudentId(s.id));
+    if (count > 0) {
         students = students.filter(s => s.groupId !== groupId);
         localStorage.setItem('pro_v_ultimate', JSON.stringify(students));
     }
-    if (!confirm(`تأكيد حذف المجموعة: ${g.name}؟`)) return;
     if (navigator.onLine) {
         groupsRef.doc(groupId).delete().catch(err => {
             console.log('Failed to delete group from Firestore', err);
@@ -2053,7 +2168,7 @@ function saveEditedSelectedGroup() {
     alert('تم تعديل بيانات المجموعة بنجاح');
 }
 
-function addGroup() {
+async function addGroup() {
     const name = document.getElementById('gName').value.trim();
     if (!name) return alert('اسم المجموعة مطلوب');
     const g = {
@@ -2067,9 +2182,13 @@ function addGroup() {
         theme: groupThemes[groups.length % groupThemes.length]
     };
     groups.push(g);
-    syncSingleGroup(g);
     persistGroups();
     renderGroupSelect();
+    try {
+        await syncSingleGroup(g);
+    } catch (e) {
+        console.log('addGroup sync', e);
+    }
     openGroupManager();
     updateKPIs();
 }
@@ -2755,6 +2874,7 @@ function saveExpense() {
 
 function deleteExpense(id) {
     if (!confirm('تأكيد حذف المصروف؟')) return;
+    purgeOfflineQueueForExpenseId(id);
     expenses = expenses.filter(e => e.id !== id);
     localStorage.setItem('center_expenses_v1', JSON.stringify(expenses));
     if (navigator.onLine) {

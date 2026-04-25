@@ -456,14 +456,14 @@ try {
     firebase.firestore().settings({ experimentalForceLongPolling: true });
 } catch (e) {}
 // ضيف الكود ده هنا
-firebase.firestore().enablePersistence()
-  .catch((err) => {
-      if (err.code == 'failed-precondition') {
-          console.log("الأوفلاين يشتغل في تاب واحدة بس");
-      } else if (err.code == 'unimplemented') {
-          console.log("المتصفح لا يدعم الأوفلاين");
-      }
-  });
+// firebase.firestore().enablePersistence()
+//   .catch((err) => {
+//       if (err.code == 'failed-precondition') {
+//           console.log("الأوفلاين يشتغل في تاب واحدة بس");
+//       } else if (err.code == 'unimplemented') {
+//           console.log("المتصفح لا يدعم الأوفلاين");
+//       }
+//   });
 const db = firebase.firestore();
 /** أول تحميل من السيرفر (مش كاش المتصفح) — يمنع اختلاف لاب/موبايل/سفاري */
 function firestoreRemoteGetOpts() {
